@@ -16,9 +16,15 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"os"
 
 	"github.com/alecthomas/kingpin"
+	"github.com/gravitational/stolon/pkg/util"
 	"github.com/gravitational/trace"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 const (
@@ -34,12 +40,18 @@ func run() error {
 	app := kingpin.New("stolonctl", "Cluster-Native K8s deployment manager")
 
 	var debug bool
-	var clusters []clusterConfig
-
 	app.Flag("debug", "Enable verbose logging to stderr").
 		Short('d').
 		BoolVar(&debug)
 
+	if debug {
+		util.InitLoggerDebug()
+
+	} else {
+		util.InitLoggerCLI()
+	}
+
+	var cfg config
 	app.Flag("store-endpoints",
 		"a comma-delimited list of store endpoints (defaults: 127.0.0.1:2379 for etcd, 127.0.0.1:8500 for consul)").
 		Envar(EnvStoreEndpoints).StringVar(&cfg.storeEndpoints)
@@ -87,35 +99,31 @@ func run() error {
 		return trace.Wrap(err)
 	}
 
-	if debug {
-		initLoggerDebug()
-	} else {
-		initLoggerCLI()
-	}
-	clt, err := newClient(config)
+	ctl, err := newClient(cfg)
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
 	switch cmd {
 	case cmdClusterConfig.FullCommand():
-		return printConfig(clt, *cmdClusterName)
+		return printConfig(ctl, *cmdClusterConfigName)
 	case cmdClusterPatch.FullCommand():
-		return patchConfig(clt, *cmdClusterName, *cmdClusterPatchFile, os.Args[len(os.Args)-1] == "-")
+		return patchConfig(ctl, *cmdClusterPatchName, *cmdClusterPatchFile, os.Args[len(os.Args)-1] == "-")
 	case cmdClusterReplace.FullCommand():
-		return replaceConfig(clt, *cmdClusterName, *cmdClusterReplaceFile, os.Args[len(os.Args)-1] == "-")
+		return replaceConfig(ctl, *cmdClusterReplaceName, *cmdClusterReplaceFile, os.Args[len(os.Args)-1] == "-")
 	case cmdClusterStatus.FullCommand():
-		return status(clt, *cmdClusterName, *cmdClusterStatusMasterOnly)
+		return status(ctl, *cmdClusterStatusName, *cmdClusterStatusMasterOnly)
 	case cmdClusterList.FullCommand():
-		return list(clt)
+		return list(ctl)
 	}
+
 	return nil
 }
 
 func printConfig(clt *client, clusterName string) error {
 	cluster, err := clt.getCluster(clusterName)
 	if err != nil {
-		return nil, trace.Wrap(err)
+		return trace.Wrap(err)
 	}
 	cfg, err := cluster.Config()
 	if err != nil {
@@ -125,7 +133,8 @@ func printConfig(clt *client, clusterName string) error {
 	if err != nil {
 		return trace.Wrap(err, "failed to marshal configuration")
 	}
-	fmt.Sprintf(os.Stdout, cfg)
+	fmt.Fprintln(os.Stdout, data)
+
 	return nil
 }
 
@@ -134,58 +143,60 @@ func patchConfig(clt *client, clusterName string, patchFile string, readStdin bo
 	if err != nil {
 		return trace.Wrap(err)
 	}
-	cluster, err := clt.getCluster(*cmdGetCluster)
+	cluster, err := clt.getCluster(clusterName)
 	if err != nil {
-		return nil, trace.Wrap(err)
+		return trace.Wrap(err)
 	}
 	err = cluster.PatchConfig(data)
+
 	return trace.Wrap(err)
 }
 
 func replaceConfig(clt *client, clusterName string, replaceFile string, readStdin bool) error {
-	data, err := readFile(patchFile, readStdin)
+	data, err := readFile(replaceFile, readStdin)
 	if err != nil {
 		return trace.Wrap(err)
 	}
-	cluster, err := clt.getCluster(*cmdGetCluster)
+	cluster, err := clt.getCluster(clusterName)
 	if err != nil {
-		return nil, trace.Wrap(err)
+		return trace.Wrap(err)
 	}
 	err = cluster.ReplaceConfig(data)
+
 	return trace.Wrap(err)
 }
 
 func readFile(fileName string, readStdin bool) ([]byte, error) {
-	if (readStin && patchFile != "") || (!readStdin && patchFile == "") {
-		return trace.BadParameter("need either file to read from or readStdin option")
+	if (readStdin && fileName != "") || (!readStdin && fileName == "") {
+		return nil, trace.BadParameter("need either file to read from or readStdin option")
 	}
 	var config []byte
 	var err error
 	if readStdin {
 		config, err = ioutil.ReadAll(os.Stdin)
 		if err != nil {
-			return trace.Wrap(err, "cannot read config file from stdin")
+			return nil, trace.Wrap(err, "cannot read config file from stdin")
 		}
 	} else {
-		config, err = ioutil.ReadFile(patchFile)
+		config, err = ioutil.ReadFile(fileName)
 		if err != nil {
-			return trace.Wrap(err, "can not read file")
+			return nil, trace.Wrap(err, "can not read file")
 		}
 	}
+
 	return config, trace.Wrap(err)
 }
 
-func list(clt *client, clusterName string, patchFile string, readStdin bool) error {
-	data, err := readFile(patchFile, readStdin)
+func list(clt *client) error {
+	clusters, err := clt.Clusters()
 	if err != nil {
 		return trace.Wrap(err)
 	}
-	cluster, err := clt.getCluster(*cmdGetCluster)
-	if err != nil {
-		return nil, trace.Wrap(err)
+	for _, cluster := range clusters {
+		fmt.Fprintln(os.Stdout, cluster)
 	}
-	err = cluster.PatchConfig(data)
-	return trace.Wrap(err)
+
+	return nil
 }
 
 func main() {

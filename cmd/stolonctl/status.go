@@ -16,34 +16,36 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"sort"
 	"text/tabwriter"
 
 	"github.com/gravitational/stolon/pkg/cluster"
+	"github.com/gravitational/trace"
 )
 
-func status(client *client, clusterName string, masterOnly string) error {
+func status(client *client, clusterName string, masterOnly bool) error {
 	clt, err := client.getCluster(clusterName)
 	if err != nil {
 		return trace.Wrap(err)
 	}
 	if masterOnly {
-		return masterStatus(cluster)
+		return masterStatus(clt)
 	}
 
 	tabOut := new(tabwriter.Writer)
-	tabOut.Init(os.Fmt.Println, 0, 8, 1, '\t', 0)
+	tabOut.Init(os.Stdout, 0, 8, 1, '\t', 0)
 
 	sentinelsInfo, err := clt.GetSentinelsInfo()
 	if err != nil {
-		return trace.Wrap("cannot get sentinels info: %v", err)
+		return trace.Wrap(err, "cannot get sentinels info")
 	}
 
 	lsid, err := clt.GetLeaderSentinelId()
 	if err != nil {
-		return trace.Wrap("cannot get leader sentinel info")
+		return trace.Wrap(errors.New("cannot get leader sentinel info"))
 	}
 
 	fmt.Println("Active sentinels")
@@ -66,7 +68,7 @@ func status(client *client, clusterName string, masterOnly string) error {
 
 	proxiesInfo, err := clt.GetProxiesInfo()
 	if err != nil {
-		return trace.Wrap("cannot get proxies info: %v", err)
+		return trace.Wrap(err, "cannot get proxies info")
 	}
 
 	fmt.Println("=== Active proxies ===")
@@ -83,10 +85,10 @@ func status(client *client, clusterName string, masterOnly string) error {
 
 	clusterData, _, err := clt.GetClusterData()
 	if err != nil {
-		return trace.Wrap("cannot get cluster data: %v", err)
+		return trace.Wrap(err, "cannot get cluster data")
 	}
 	if clusterData == nil {
-		return trace.Wrap("cluster data not available: %v", err)
+		return trace.Wrap(err, "cluster data not available")
 	}
 	cv := clusterData.ClusterView
 	kss := clusterData.KeepersState
@@ -119,6 +121,7 @@ func status(client *client, clusterName string, masterOnly string) error {
 	}
 
 	fmt.Println("")
+	return nil
 }
 
 func masterStatus(clt *clusterClient) error {
@@ -132,15 +135,12 @@ func masterStatus(clt *clusterClient) error {
 	cv := clusterData.ClusterView
 	kss := clusterData.KeepersState
 	masterData := kss[cv.Master]
-	if outputFormat == OutputJSON {
-		data, err := json.Marshal(masterData)
-		if err != nil {
-			return trace.Wrap(err, "can't convert to json")
-		}
-		fmt.Println(string(data))
-	} else {
-		fmt.Println(masterData)
+	data, err := json.Marshal(masterData)
+	if err != nil {
+		return trace.Wrap(err, "can't convert to json")
 	}
+	fmt.Println(string(data))
+	//fmt.Println(masterData)
 	return nil
 }
 
