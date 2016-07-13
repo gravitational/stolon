@@ -90,6 +90,7 @@ func run() error {
 	cmdClusterStatus := cmdCluster.Command("status", "print cluster status")
 	cmdClusterStatusName := cmdClusterStatus.Arg("cluster-name", "cluster name").Required().String()
 	cmdClusterStatusMasterOnly := cmdClusterStatus.Flag("master", "limit output to master only").Default("false").Bool()
+	cmdClusterStatusOutputJson := cmdClusterStatus.Flag("json", "format output to json").Default("false").Bool()
 
 	// list clusters
 	cmdClusterList := cmdCluster.Command("list", "list clusters")
@@ -112,7 +113,7 @@ func run() error {
 	case cmdClusterReplace.FullCommand():
 		return replaceConfig(ctl, *cmdClusterReplaceName, *cmdClusterReplaceFile, os.Args[len(os.Args)-1] == "-")
 	case cmdClusterStatus.FullCommand():
-		return status(ctl, *cmdClusterStatusName, *cmdClusterStatusMasterOnly)
+		return status(ctl, *cmdClusterStatusName, *cmdClusterStatusMasterOnly, *cmdClusterStatusOutputJson)
 	case cmdClusterList.FullCommand():
 		return list(ctl)
 	}

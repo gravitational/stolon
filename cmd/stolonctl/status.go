@@ -26,13 +26,14 @@ import (
 	"github.com/gravitational/trace"
 )
 
-func status(client *client, clusterName string, masterOnly bool) error {
+func status(client *client, clusterName string, masterOnly, toJson bool) error {
 	clt, err := client.getCluster(clusterName)
 	if err != nil {
 		return trace.Wrap(err)
 	}
+
 	if masterOnly {
-		return masterStatus(clt)
+		return masterStatus(clt, toJson)
 	}
 
 	tabOut := new(tabwriter.Writer)
@@ -42,7 +43,6 @@ func status(client *client, clusterName string, masterOnly bool) error {
 	if err != nil {
 		return trace.Wrap(err, "cannot get sentinels info")
 	}
-
 	lsid, err := clt.GetLeaderSentinelId()
 	if err != nil {
 		return trace.Wrap(errors.New("cannot get leader sentinel info"))
@@ -71,7 +71,7 @@ func status(client *client, clusterName string, masterOnly bool) error {
 		return trace.Wrap(err, "cannot get proxies info")
 	}
 
-	fmt.Println("=== Active proxies ===")
+	fmt.Println("Active proxies")
 	if len(proxiesInfo) == 0 {
 		fmt.Println("No active proxies")
 	} else {
@@ -124,7 +124,7 @@ func status(client *client, clusterName string, masterOnly bool) error {
 	return nil
 }
 
-func masterStatus(clt *clusterClient) error {
+func masterStatus(clt *clusterClient, toJson bool) error {
 	clusterData, _, err := clt.GetClusterData()
 	if err != nil {
 		return trace.Wrap(err, "cannot get cluster data")
@@ -135,12 +135,16 @@ func masterStatus(clt *clusterClient) error {
 	cv := clusterData.ClusterView
 	kss := clusterData.KeepersState
 	masterData := kss[cv.Master]
-	data, err := json.Marshal(masterData)
-	if err != nil {
-		return trace.Wrap(err, "can't convert to json")
+	if toJson {
+		data, err := json.Marshal(masterData)
+		if err != nil {
+			return trace.Wrap(err, "can't convert to json")
+		}
+		fmt.Println(string(data))
+	} else {
+		fmt.Println(masterData)
 	}
-	fmt.Println(string(data))
-	//fmt.Println(masterData)
+
 	return nil
 }
 
