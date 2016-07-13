@@ -1,11 +1,33 @@
 {
-	"ImportPath": "github.com/sorintlab/stolon",
+	"ImportPath": "github.com/gravitational/stolon",
 	"GoVersion": "go1.5",
 	"GodepVersion": "v74",
 	"Packages": [
 		"./..."
 	],
 	"Deps": [
+		{
+			"ImportPath": "github.com/Sirupsen/logrus",
+			"Comment": "v0.10.0-19-gf3cfb45",
+			"Rev": "f3cfb454f4c209e6668c95216c4744b8fddb2356"
+		},
+		{
+			"ImportPath": "github.com/alecthomas/kingpin",
+			"Comment": "v2.2.0",
+			"Rev": "92b2733684bc5f1971162349ce098fe0d070e2a9"
+		},
+		{
+			"ImportPath": "github.com/alecthomas/template",
+			"Rev": "a0175ee3bccc567396460bf5acd36800cb10c49c"
+		},
+		{
+			"ImportPath": "github.com/alecthomas/template/parse",
+			"Rev": "a0175ee3bccc567396460bf5acd36800cb10c49c"
+		},
+		{
+			"ImportPath": "github.com/alecthomas/units",
+			"Rev": "2efee857e7cfd4f3d0138cc3cbb1b4966962b93a"
+		},
 		{
 			"ImportPath": "github.com/coreos/etcd/Godeps/_workspace/src/github.com/ugorji/go/codec",
 			"Comment": "v2.3.0-alpha.0-430-g374b14e",
@@ -83,6 +105,10 @@
 			"Rev": "ad4d7a5882b961e07e2626045eb995c022ac6664"
 		},
 		{
+			"ImportPath": "github.com/gravitational/trace",
+			"Rev": "eadd167f3bf1293753c317c6a3d76fd275cf8933"
+		},
+		{
 			"ImportPath": "github.com/hashicorp/consul/api",
 			"Comment": "v0.6.3-21-g35adb39",
 			"Rev": "35adb391a27cf90fea06d3b676103bc5be3c144c"
@@ -103,6 +129,11 @@
 		{
 			"ImportPath": "github.com/jmoiron/jsonq",
 			"Rev": "e874b168d07ecc7808bc950a17998a8aa3141d82"
+		},
+		{
+			"ImportPath": "github.com/jonboulle/clockwork",
+			"Comment": "v0.1.0",
+			"Rev": "2eee05ed794112d45db504eb05aa693efd2b8b09"
 		},
 		{
 			"ImportPath": "github.com/kballard/go-shellquote",
@@ -154,6 +185,10 @@
 		{
 			"ImportPath": "golang.org/x/net/context",
 			"Rev": "5df5483e0518a11a6ef1e894c70236eb3f639557"
+		},
+		{
+			"ImportPath": "golang.org/x/sys/unix",
+			"Rev": "a408501be4d17ee978c04a618e7a1b22af058c0e"
 		},
 		{
 			"ImportPath": "k8s.io/kubernetes/pkg/util/strategicpatch",
