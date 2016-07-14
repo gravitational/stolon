@@ -1,4 +1,4 @@
-package main
+package client
 
 import (
 	"bytes"
@@ -17,26 +17,26 @@ import (
 	"k8s.io/kubernetes/pkg/util/strategicpatch"
 )
 
-func newClient(cfg config) (*client, error) {
+func New(cfg Config) (*Client, error) {
 	kvstore, err := store.NewStore(
-		store.Backend(cfg.storeBackend),
-		cfg.storeEndpoints,
-		cfg.storeCertFile,
-		cfg.storeKeyFile,
-		cfg.storeCACertFile,
+		store.Backend(cfg.StoreBackend),
+		cfg.StoreEndpoints,
+		cfg.StoreCertFile,
+		cfg.StoreKeyFile,
+		cfg.StoreCACertFile,
 	)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-	return &client{cfg: cfg, store: kvstore}, nil
+	return &Client{cfg: cfg, store: kvstore}, nil
 }
 
-type config struct {
-	storeBackend    string
-	storeEndpoints  string
-	storeCertFile   string
-	storeKeyFile    string
-	storeCACertFile string
+type Config struct {
+	StoreBackend    string
+	StoreEndpoints  string
+	StoreCertFile   string
+	StoreKeyFile    string
+	StoreCACertFile string
 }
 
 type clusterStatus struct {
@@ -45,22 +45,22 @@ type clusterStatus struct {
 	Proxies        cluster.ProxiesInfo
 }
 
-type client struct {
-	cfg   config
+type Client struct {
+	cfg   Config
 	store kvstore.Store
 }
 
-type clusterClient struct {
+type ClusterClient struct {
 	*store.StoreManager
-	client      *client
+	client      *Client
 	clusterName string
 }
 
-func (c *client) getCluster(clusterName string) (*clusterClient, error) {
+func (c *Client) GetCluster(clusterName string) (*ClusterClient, error) {
 	if clusterName == "" {
 		return nil, trace.BadParameter("please supply cluster name")
 	}
-	return &clusterClient{
+	return &ClusterClient{
 		client:      c,
 		clusterName: clusterName,
 		StoreManager: store.NewStoreManager(c.store,
@@ -68,7 +68,7 @@ func (c *client) getCluster(clusterName string) (*clusterClient, error) {
 	}, nil
 }
 
-func (c *client) Clusters() ([]string, error) {
+func (c *Client) Clusters() ([]string, error) {
 	clusters := []string{}
 	pairs, err := c.store.List(common.StoreBasePath)
 	if err != nil {
@@ -84,7 +84,7 @@ func (c *client) Clusters() ([]string, error) {
 	return clusters, nil
 }
 
-func (c *clusterClient) Config() (*cluster.NilConfig, error) {
+func (c *ClusterClient) Config() (*cluster.NilConfig, error) {
 	cv, _, err := c.GetClusterView()
 	if err != nil {
 		return nil, trace.Wrap(err, "cannot get clusterview for %v", c.clusterName)
@@ -99,7 +99,7 @@ func (c *clusterClient) Config() (*cluster.NilConfig, error) {
 	return cfg, nil
 }
 
-func (c *clusterClient) PatchConfig(newData []byte) error {
+func (c *ClusterClient) PatchConfig(newData []byte) error {
 	currentConfig, err := c.Config()
 	if err != nil {
 		return trace.Wrap(err, "can not get config for %v", c.clusterName)
@@ -116,7 +116,7 @@ func (c *clusterClient) PatchConfig(newData []byte) error {
 	return trace.Wrap(err)
 }
 
-func (c *clusterClient) ReplaceConfig(data []byte) error {
+func (c *ClusterClient) ReplaceConfig(data []byte) error {
 	sid, err := c.GetLeaderSentinelId()
 	if err != nil {
 		return trace.Wrap(err)

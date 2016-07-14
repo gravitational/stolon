@@ -1,33 +1,21 @@
-// Copyright 2015 Sorint.lab
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-package main
+package cluster
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"sort"
 	"text/tabwriter"
 
+	"github.com/gravitational/stolon/cmd/stolonctl/client"
 	"github.com/gravitational/stolon/pkg/cluster"
 	"github.com/gravitational/trace"
 )
 
-func status(client *client, clusterName string, masterOnly, toJson bool) error {
-	clt, err := client.getCluster(clusterName)
+func Status(client *client.Client, clusterName string, masterOnly, toJson bool) error {
+	clt, err := client.GetCluster(clusterName)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -124,7 +112,7 @@ func status(client *client, clusterName string, masterOnly, toJson bool) error {
 	return nil
 }
 
-func masterStatus(clt *clusterClient, toJson bool) error {
+func masterStatus(clt *client.ClusterClient, toJson bool) error {
 	clusterData, _, err := clt.GetClusterData()
 	if err != nil {
 		return trace.Wrap(err, "cannot get cluster data")
@@ -146,6 +134,85 @@ func masterStatus(clt *clusterClient, toJson bool) error {
 	}
 
 	return nil
+}
+
+func PrintConfig(clt *client.Client, clusterName string) error {
+	cluster, err := clt.GetCluster(clusterName)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	cfg, err := cluster.Config()
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	data, err := json.MarshalIndent(cfg, "", "\t")
+	if err != nil {
+		return trace.Wrap(err, "failed to marshal configuration")
+	}
+	fmt.Fprintln(os.Stdout, data)
+
+	return nil
+}
+
+func PatchConfig(clt *client.Client, clusterName string, patchFile string, readStdin bool) error {
+	data, err := readFile(patchFile, readStdin)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	cluster, err := clt.GetCluster(clusterName)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	err = cluster.PatchConfig(data)
+
+	return trace.Wrap(err)
+}
+
+func ReplaceConfig(clt *client.Client, clusterName string, replaceFile string, readStdin bool) error {
+	data, err := readFile(replaceFile, readStdin)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	cluster, err := clt.GetCluster(clusterName)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	err = cluster.ReplaceConfig(data)
+
+	return trace.Wrap(err)
+}
+
+func List(clt *client.Client) error {
+	clusters, err := clt.Clusters()
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	for _, cluster := range clusters {
+		fmt.Fprintln(os.Stdout, cluster)
+	}
+
+	return nil
+}
+
+func readFile(fileName string, readStdin bool) ([]byte, error) {
+	if (readStdin && fileName != "") || (!readStdin && fileName == "") {
+		return nil, trace.BadParameter("need either file to read from or readStdin option")
+	}
+	var config []byte
+	var err error
+	if readStdin {
+		config, err = ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			return nil, trace.Wrap(err, "cannot read config file from stdin")
+		}
+	} else {
+		config, err = ioutil.ReadFile(fileName)
+		if err != nil {
+			return nil, trace.Wrap(err, "can not read file")
+		}
+	}
+
+	return config, trace.Wrap(err)
 }
 
 func printTree(id string, cv *cluster.ClusterView, level int, prefix string, tail bool) {
