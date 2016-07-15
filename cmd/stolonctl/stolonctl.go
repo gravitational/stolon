@@ -1,79 +1,109 @@
-// Copyright 2015 Sorint.lab
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package main
 
 import (
-	"fmt"
 	"os"
-	"strings"
 
-	"github.com/sorintlab/stolon/pkg/flagutil"
+	"github.com/alecthomas/kingpin"
+	"github.com/gravitational/stolon/cmd/stolonctl/client"
+	"github.com/gravitational/stolon/cmd/stolonctl/cluster"
+	"github.com/gravitational/stolon/pkg/util"
+	"github.com/gravitational/trace"
 
-	"github.com/spf13/cobra"
+	log "github.com/Sirupsen/logrus"
 )
 
-var cmdStolonCtl = &cobra.Command{
-	Use:   "stolonctl",
-	Short: "stolon command line client",
-	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		if cfg.clusterName == "" {
-			die("cluster name required")
-		}
-		if cfg.storeBackend == "" {
-			die("store backend type required")
-		}
-	},
+const (
+	EnvStoreEndpoints = "STOLONCTL_STORE_ENDPOINTS"
+	EnvStoreBackend   = "STOLONCTL_STORE_BACKEND"
+	EnvStoreKey       = "STOLONCTL_STORE_KEY"
+	EnvStoreCACert    = "STOLONCTL_STORE_CA_CERT"
+	EnvStoreCert      = "STOLONCTL_STORE_CERT"
+)
+
+type application struct {
+	*kingpin.Application
 }
 
-type config struct {
-	storeBackend    string
-	storeEndpoints  string
-	storeCertFile   string
-	storeKeyFile    string
-	storeCACertFile string
-	clusterName     string
+func new() *application {
+	app := kingpin.New("stolonctl", "stolon command line client")
+
+	var debug bool
+	app.Flag("debug", "Enable verbose logging to stderr").
+		Short('d').
+		BoolVar(&debug)
+	if debug {
+		util.InitLoggerDebug()
+	} else {
+		util.InitLoggerCLI()
+	}
+
+	return &application{app}
 }
 
-var cfg config
+func (app *application) run() error {
+	// Cluster commands
+	cmdCluster := app.Command("cluster", "operations on existing cluster")
 
-func init() {
-	cmdStolonCtl.PersistentFlags().StringVar(&cfg.storeBackend, "store-backend", "", "store backend type (etcd or consul)")
-	cmdStolonCtl.PersistentFlags().StringVar(&cfg.storeEndpoints, "store-endpoints", "", "a comma-delimited list of store endpoints (defaults: 127.0.0.1:2379 for etcd, 127.0.0.1:8500 for consul)")
-	cmdStolonCtl.PersistentFlags().StringVar(&cfg.storeCertFile, "store-cert", "", "path to the client server TLS cert file")
-	cmdStolonCtl.PersistentFlags().StringVar(&cfg.storeKeyFile, "store-key", "", "path to the client server TLS key file")
-	cmdStolonCtl.PersistentFlags().StringVar(&cfg.storeCACertFile, "store-cacert", "", "path to the client server TLS trusted CA key file")
-	cmdStolonCtl.PersistentFlags().StringVar(&cfg.clusterName, "cluster-name", "", "cluster name")
+	var cfg client.Config
+	cmdCluster.Flag("store-endpoints", "a comma-delimited list of store endpoints (defaults: 127.0.0.1:2379 for etcd, 127.0.0.1:8500 for consul)").
+		Envar(EnvStoreEndpoints).StringVar(&cfg.StoreEndpoints)
+	cmdCluster.Flag("store-backend", "store backend type (etcd or consul)").
+		Envar(EnvStoreBackend).StringVar(&cfg.StoreBackend)
+	cmdCluster.Flag("store-cert", "path to the client server TLS cert file").
+		Envar(EnvStoreCert).StringVar(&cfg.StoreCertFile)
+	cmdCluster.Flag("store-key", "path to the client server TLS key file").
+		Envar(EnvStoreKey).StringVar(&cfg.StoreKeyFile)
+	cmdCluster.Flag("store-cacert", "path to the client server TLS trusted CA key file").
+		Envar(EnvStoreCACert).StringVar(&cfg.StoreCACertFile)
+
+	// print config
+	cmdClusterConfig := cmdCluster.Command("config", "print configuration for cluster")
+	cmdClusterConfigName := cmdClusterConfig.Arg("cluster-name", "cluster name").Required().String()
+	// patch config
+	cmdClusterPatch := cmdCluster.Command("patch", "patch configuration for cluster")
+	cmdClusterPatchName := cmdClusterPatch.Arg("cluster-name", "cluster name").Required().String()
+	cmdClusterPatchFile := cmdClusterPatch.Flag("file", "patch configuration for cluster").Short('f').String()
+	// replace config
+	cmdClusterReplace := cmdCluster.Command("replace", "replace configuration for cluster")
+	cmdClusterReplaceName := cmdClusterReplace.Arg("cluster-name", "cluster name").Required().String()
+	cmdClusterReplaceFile := cmdClusterReplace.Flag("file", "replace configuration for cluster").Short('f').String()
+	// print status
+	cmdClusterStatus := cmdCluster.Command("status", "print cluster status")
+	cmdClusterStatusName := cmdClusterStatus.Arg("cluster-name", "cluster name").Required().String()
+	cmdClusterStatusMasterOnly := cmdClusterStatus.Flag("master", "limit output to master only").Default("false").Bool()
+	cmdClusterStatusOutputJson := cmdClusterStatus.Flag("json", "format output to json").Default("false").Bool()
+	// list clusters
+	cmdClusterList := cmdCluster.Command("list", "list clusters")
+
+	cmd, err := app.Parse(os.Args[1:])
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	clt, err := client.New(cfg)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	switch cmd {
+	case cmdClusterConfig.FullCommand():
+		return cluster.PrintConfig(clt, *cmdClusterConfigName)
+	case cmdClusterPatch.FullCommand():
+		return cluster.PatchConfig(clt, *cmdClusterPatchName, *cmdClusterPatchFile, os.Args[len(os.Args)-1] == "-")
+	case cmdClusterReplace.FullCommand():
+		return cluster.ReplaceConfig(clt, *cmdClusterReplaceName, *cmdClusterReplaceFile, os.Args[len(os.Args)-1] == "-")
+	case cmdClusterStatus.FullCommand():
+		return cluster.Status(clt, *cmdClusterStatusName, *cmdClusterStatusMasterOnly, *cmdClusterStatusOutputJson)
+	case cmdClusterList.FullCommand():
+		return cluster.List(clt)
+	}
+
+	return nil
 }
 
 func main() {
-	flagutil.SetFlagsFromEnv(cmdStolonCtl.PersistentFlags(), "STOLONCTL")
-
-	cmdStolonCtl.Execute()
-}
-
-func stderr(format string, a ...interface{}) {
-	out := fmt.Sprintf(format, a...)
-	fmt.Fprintln(os.Stderr, strings.TrimSuffix(out, "\n"))
-}
-
-func stdout(format string, a ...interface{}) {
-	out := fmt.Sprintf(format, a...)
-	fmt.Fprintln(os.Stdout, strings.TrimSuffix(out, "\n"))
-}
-
-func die(format string, a ...interface{}) {
-	stderr(format, a...)
-	os.Exit(1)
+	app := new()
+	if err := app.run(); err != nil {
+		log.Error(trace.DebugReport(err))
+		os.Exit(1)
+	}
 }
