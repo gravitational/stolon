@@ -84,7 +84,8 @@ func (app *application) run() error {
 
 	// backup
 	cmdPGBackup := cmdPG.Command("backup", "backup database")
-	cmdPGBackupName := cmdPGBackup.Arg("database-name", "database name").Required().String()
+	cmdPGDatabaseName := cmdPGBackup.Arg("database-name", "database name").Required().String()
+	cmdPGBackupLocation := cmdPGBackup.Arg("path", "path to store backup").Required().String()
 
 	var conn postgresql.ConnSettings
 	cmdPGBackup.Flag("host", "database server host").Default("localhost").Envar(EnvPGHost).StringVar(&conn.Host)
@@ -98,7 +99,7 @@ func (app *application) run() error {
 
 	switch cmd {
 	case cmdPGBackup.FullCommand():
-		return postgresql.Backup(conn, *cmdPGBackupName)
+		return postgresql.Backup(conn, *cmdPGDatabaseName, *cmdPGBackupLocation)
 	}
 
 	clt, err := client.New(cfg)
