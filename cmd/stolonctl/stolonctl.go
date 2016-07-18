@@ -79,19 +79,17 @@ func (app *application) run() error {
 	// list clusters
 	cmdClusterList := cmdCluster.Command("list", "list clusters")
 
-	// PG commands
-	cmdPG := app.Command("pg", "operations on postgresql")
+	// postgres commands
+	cmdPG := app.Command("pg", "database operations")
+
 	// backup
 	cmdPGBackup := cmdPG.Command("backup", "backup database")
 	cmdPGBackupName := cmdPGBackup.Arg("database-name", "database name").Required().String()
 
 	var conn postgresql.ConnSettings
-	cmdPGBackup.Flag("host", "database server host").
-		Envar(EnvPGHost).Required().StringVar(&conn.Host)
-	cmdPGBackup.Flag("port", "database server port").
-		Envar(EnvPGPort).Required().StringVar(&conn.Port)
-	cmdPGBackup.Flag("username", "database user name").
-		Envar(EnvPGUsername).Required().StringVar(&conn.Username)
+	cmdPGBackup.Flag("host", "database server host").Default("localhost").Envar(EnvPGHost).StringVar(&conn.Host)
+	cmdPGBackup.Flag("port", "database server port").Default("5432").Envar(EnvPGPort).StringVar(&conn.Port)
+	cmdPGBackup.Flag("username", "database user name").Default("postgres").Envar(EnvPGUsername).StringVar(&conn.Username)
 
 	cmd, err := app.Parse(os.Args[1:])
 	if err != nil {

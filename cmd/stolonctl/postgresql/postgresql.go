@@ -16,12 +16,12 @@ type ConnSettings struct {
 }
 
 func Backup(c ConnSettings, DBName string) error {
-	result := fmt.Sprintf(`%v_%v.sql.tar.gz`, DBName, time.Now().Unix())
+	result := fmt.Sprintf(`%v_%v.sql.gz`, DBName, time.Now().Unix())
 	log.Infof("Backup database %v to %v", DBName, result)
 
-	cmd := pgDumpCommand("--host", c.Host, "--port", c.Port, "--username", c.Username, DBName)
+	cmd := pgDumpCommand("--host", c.Host, "--port", c.Port, "--username", c.Username, "--file", result, "--compress", "6", DBName)
 	out, err := cmd.CombinedOutput()
-	log.Debugf("cmd output: %s", string(out))
+	log.Infof("cmd output: %s", string(out))
 	if err != nil {
 		return trace.Wrap(err)
 	}
