@@ -14,14 +14,16 @@ import (
 )
 
 const (
-	EnvStoreEndpoints = "STOLONCTL_STORE_ENDPOINTS"
-	EnvStoreBackend   = "STOLONCTL_STORE_BACKEND"
-	EnvStoreKey       = "STOLONCTL_STORE_KEY"
-	EnvStoreCACert    = "STOLONCTL_STORE_CA_CERT"
-	EnvStoreCert      = "STOLONCTL_STORE_CERT"
-	EnvPGHost         = "STOLONCTL_PG_HOST"
-	EnvPGPort         = "STOLONCTL_PG_PORT"
-	EnvPGUsername     = "STOLONCTL_PG_USERNAME"
+	EnvStoreEndpoints    = "STOLONCTL_STORE_ENDPOINTS"
+	EnvStoreBackend      = "STOLONCTL_STORE_BACKEND"
+	EnvStoreKey          = "STOLONCTL_STORE_KEY"
+	EnvStoreCACert       = "STOLONCTL_STORE_CA_CERT"
+	EnvStoreCert         = "STOLONCTL_STORE_CERT"
+	EnvPGHost            = "STOLONCTL_PG_HOST"
+	EnvPGPort            = "STOLONCTL_PG_PORT"
+	EnvPGUsername        = "STOLONCTL_PG_USERNAME"
+	EnvS3AccessKeyID     = "STOLONCTL_S3_ACCESS_KEY_ID"
+	EnvS3SecretAccessKey = "STOLONCTL_S3_SECRET_ACCESS_KEY"
 )
 
 type application struct {
@@ -88,9 +90,12 @@ func (app *application) run() error {
 	cmdPGBackupLocation := cmdPGBackup.Arg("path", "path to store backup").Required().String()
 
 	var conn postgresql.ConnSettings
+	var s3 postgresql.S3Settings
 	cmdPGBackup.Flag("host", "database server host").Default("localhost").Envar(EnvPGHost).StringVar(&conn.Host)
 	cmdPGBackup.Flag("port", "database server port").Default("5432").Envar(EnvPGPort).StringVar(&conn.Port)
 	cmdPGBackup.Flag("username", "database user name").Default("postgres").Envar(EnvPGUsername).StringVar(&conn.Username)
+	cmdPGBackup.Flag("access-key", "S3 access key ID").Envar(EnvS3AccessKeyID).StringVar(&s3.AccessKeyID)
+	cmdPGBackup.Flag("secret-key", "S3 secret access key").Envar(EnvS3SecretAccessKey).StringVar(&s3.SecretAccessKey)
 
 	cmd, err := app.Parse(os.Args[1:])
 	if err != nil {
@@ -99,7 +104,7 @@ func (app *application) run() error {
 
 	switch cmd {
 	case cmdPGBackup.FullCommand():
-		return postgresql.Backup(conn, *cmdPGDatabaseName, *cmdPGBackupLocation)
+		return postgresql.Backup(conn, s3, *cmdPGDatabaseName, *cmdPGBackupLocation)
 	}
 
 	clt, err := client.New(cfg)

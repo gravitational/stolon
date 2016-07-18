@@ -17,7 +17,12 @@ type ConnSettings struct {
 	Username string
 }
 
-func Backup(connSettings ConnSettings, dbName string, backupPath string) error {
+type S3Settings struct {
+	AccessKeyID     string
+	SecretAccessKey string
+}
+
+func Backup(connSettings ConnSettings, s3Settings S3Settings, dbName string, backupPath string) error {
 	if strings.HasPrefix(backupPath, "s3://") {
 		// backup to temp file
 		// upload to s3
