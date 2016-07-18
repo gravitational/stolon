@@ -93,7 +93,7 @@ func uploadToS3(s3Settings S3Settings, sourceFilename string, destination string
 
 	log.Infof("bucket: %v", location.Bucket)
 
-	n, err := client.FPutObject(location.Bucket, filename, sourceFilename, "application/gzip")
+	n, err := client.FPutObject(location.Bucket, path.Join(location.Path, filename), sourceFilename, "application/gzip")
 	if err != nil {
 		return trace.Wrap(err)
 	}
