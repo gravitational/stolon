@@ -6,6 +6,7 @@ import (
 	"github.com/alecthomas/kingpin"
 	"github.com/gravitational/stolon/cmd/stolonctl/client"
 	"github.com/gravitational/stolon/cmd/stolonctl/cluster"
+	"github.com/gravitational/stolon/cmd/stolonctl/postgresql"
 	"github.com/gravitational/stolon/pkg/util"
 	"github.com/gravitational/trace"
 
@@ -18,6 +19,9 @@ const (
 	EnvStoreKey       = "STOLONCTL_STORE_KEY"
 	EnvStoreCACert    = "STOLONCTL_STORE_CA_CERT"
 	EnvStoreCert      = "STOLONCTL_STORE_CERT"
+	EnvPGHost         = "STOLONCTL_PG_HOST"
+	EnvPGPort         = "STOLONCTL_PG_PORT"
+	EnvPGUsername     = "STOLONCTL_PG_USERNAME"
 )
 
 type application struct {
@@ -75,9 +79,28 @@ func (app *application) run() error {
 	// list clusters
 	cmdClusterList := cmdCluster.Command("list", "list clusters")
 
+	// PG commands
+	cmdPG := app.Command("pg", "operations on postgresql")
+	// backup
+	cmdPGBackup := cmdPG.Command("backup", "backup database")
+	cmdPGBackupName := cmdPGBackup.Arg("database-name", "database name").Required().String()
+
+	var conn postgresql.ConnSettings
+	cmdPGBackup.Flag("host", "database server host").
+		Envar(EnvPGHost).Required().StringVar(&conn.Host)
+	cmdPGBackup.Flag("port", "database server port").
+		Envar(EnvPGPort).Required().StringVar(&conn.Port)
+	cmdPGBackup.Flag("username", "database user name").
+		Envar(EnvPGUsername).Required().StringVar(&conn.Username)
+
 	cmd, err := app.Parse(os.Args[1:])
 	if err != nil {
 		return trace.Wrap(err)
+	}
+
+	switch cmd {
+	case cmdPGBackup.FullCommand():
+		return postgresql.Backup(conn, *cmdPGBackupName)
 	}
 
 	clt, err := client.New(cfg)
