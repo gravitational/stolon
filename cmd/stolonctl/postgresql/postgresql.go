@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os/exec"
 	"path"
+	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -17,11 +18,21 @@ type ConnSettings struct {
 }
 
 func Backup(connSettings ConnSettings, dbName string, backupPath string) error {
-	result := path.Join(backupPath, fmt.Sprintf(`%v_%v.sql.gz`, dbName, time.Now().Unix()))
-	log.Infof("Backup database %v to %v", dbName, result)
+	if strings.HasPrefix(backupPath, "s3://") {
+		// backup to temp file
+		// upload to s3
+		return nil
+	} else {
+		result := path.Join(backupPath, fmt.Sprintf(`%v_%v.sql.gz`, dbName, time.Now().Unix()))
+		return backupToFile(connSettings, dbName, result)
+	}
+}
+
+func backupToFile(connSettings ConnSettings, dbName string, fileName string) error {
+	log.Infof("Backup database %v to %v", dbName, fileName)
 
 	cmd := pgDumpCommand("--host", connSettings.Host, "--port", connSettings.Port,
-		"--username", connSettings.Username, "--file", result, "--compress", "6",
+		"--username", connSettings.Username, "--file", fileName, "--compress", "6",
 		dbName)
 
 	out, err := cmd.CombinedOutput()
