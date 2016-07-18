@@ -6,6 +6,8 @@ import (
 	"github.com/alecthomas/kingpin"
 	"github.com/gravitational/stolon/cmd/stolonctl/client"
 	"github.com/gravitational/stolon/cmd/stolonctl/cluster"
+	"github.com/gravitational/stolon/cmd/stolonctl/database"
+	"github.com/gravitational/stolon/cmd/stolonctl/store"
 	"github.com/gravitational/stolon/pkg/util"
 	"github.com/gravitational/trace"
 
@@ -13,11 +15,16 @@ import (
 )
 
 const (
-	EnvStoreEndpoints = "STOLONCTL_STORE_ENDPOINTS"
-	EnvStoreBackend   = "STOLONCTL_STORE_BACKEND"
-	EnvStoreKey       = "STOLONCTL_STORE_KEY"
-	EnvStoreCACert    = "STOLONCTL_STORE_CA_CERT"
-	EnvStoreCert      = "STOLONCTL_STORE_CERT"
+	EnvStoreEndpoints    = "STOLONCTL_STORE_ENDPOINTS"
+	EnvStoreBackend      = "STOLONCTL_STORE_BACKEND"
+	EnvStoreKey          = "STOLONCTL_STORE_KEY"
+	EnvStoreCACert       = "STOLONCTL_STORE_CA_CERT"
+	EnvStoreCert         = "STOLONCTL_STORE_CERT"
+	EnvDatabaseHost      = "STOLONCTL_DB_HOST"
+	EnvDatabasePort      = "STOLONCTL_DB_PORT"
+	EnvDatabaseUsername  = "STOLONCTL_DB_USERNAME"
+	EnvS3AccessKeyID     = "STOLONCTL_S3_ACCESS_KEY_ID"
+	EnvS3SecretAccessKey = "STOLONCTL_S3_SECRET_ACCESS_KEY"
 )
 
 type application struct {
@@ -75,9 +82,36 @@ func (app *application) run() error {
 	// list clusters
 	cmdClusterList := cmdCluster.Command("list", "list clusters")
 
+	// database commands
+	cmdDatabase := app.Command("db", "database operations")
+
+	var dbConn database.ConnSettings
+	cmdDatabase.Flag("host", "database server host").Default("localhost").Envar(EnvDatabaseHost).StringVar(&dbConn.Host)
+	cmdDatabase.Flag("port", "database server port").Default("5432").Envar(EnvDatabasePort).StringVar(&dbConn.Port)
+	cmdDatabase.Flag("username", "database user name").Default("postgres").Envar(EnvDatabaseUsername).StringVar(&dbConn.Username)
+
+	var s3Cred store.S3Credentials
+	cmdDatabase.Flag("access-key", "S3 access key ID").Envar(EnvS3AccessKeyID).StringVar(&s3Cred.AccessKeyID)
+	cmdDatabase.Flag("secret-key", "S3 secret access key").Envar(EnvS3SecretAccessKey).StringVar(&s3Cred.SecretAccessKey)
+
+	// backup
+	cmdDatabaseBackup := cmdDatabase.Command("backup", "backup a database")
+	cmdDatabaseBackupName := cmdDatabaseBackup.Arg("name", "specifies the name of the database").Required().String()
+	cmdDatabaseBackupPath := cmdDatabaseBackup.Arg("path", "send output to the specified folder").Required().String()
+	// restore
+	cmdDatabaseRestore := cmdDatabase.Command("restore", "restore a database")
+	cmdDatabaseRestoreFile := cmdDatabaseRestore.Arg("file", "file with SQL commands").Required().String()
+
 	cmd, err := app.Parse(os.Args[1:])
 	if err != nil {
 		return trace.Wrap(err)
+	}
+
+	switch cmd {
+	case cmdDatabaseBackup.FullCommand():
+		return database.Backup(dbConn, s3Cred, *cmdDatabaseBackupName, *cmdDatabaseBackupPath)
+	case cmdDatabaseRestore.FullCommand():
+		return database.Restore(dbConn, s3Cred, *cmdDatabaseRestoreFile)
 	}
 
 	clt, err := client.New(cfg)
