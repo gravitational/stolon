@@ -6,7 +6,9 @@ import (
 	"github.com/alecthomas/kingpin"
 	"github.com/gravitational/stolon/cmd/stolonctl/client"
 	"github.com/gravitational/stolon/cmd/stolonctl/cluster"
+
 	"github.com/gravitational/stolon/cmd/stolonctl/postgresql"
+	"github.com/gravitational/stolon/cmd/stolonctl/store"
 	"github.com/gravitational/stolon/pkg/util"
 	"github.com/gravitational/trace"
 
@@ -83,17 +85,16 @@ func (app *application) run() error {
 
 	// postgres commands
 	cmdPG := app.Command("pg", "database operations")
-
 	// backup
 	cmdPGBackup := cmdPG.Command("backup", "backup database")
 	cmdPGDatabaseName := cmdPGBackup.Arg("database-name", "database name").Required().String()
 	cmdPGBackupLocation := cmdPGBackup.Arg("path", "path to store backup").Required().String()
 
 	var conn postgresql.ConnSettings
-	var s3 postgresql.S3Settings
 	cmdPGBackup.Flag("host", "database server host").Default("localhost").Envar(EnvPGHost).StringVar(&conn.Host)
 	cmdPGBackup.Flag("port", "database server port").Default("5432").Envar(EnvPGPort).StringVar(&conn.Port)
 	cmdPGBackup.Flag("username", "database user name").Default("postgres").Envar(EnvPGUsername).StringVar(&conn.Username)
+	var s3 store.S3Credentials
 	cmdPGBackup.Flag("access-key", "S3 access key ID").Envar(EnvS3AccessKeyID).StringVar(&s3.AccessKeyID)
 	cmdPGBackup.Flag("secret-key", "S3 secret access key").Envar(EnvS3SecretAccessKey).StringVar(&s3.SecretAccessKey)
 
