@@ -102,6 +102,10 @@ func uploadToS3(s3Settings S3Settings, sourceFilename string, destination string
 }
 
 func parseS3Location(path string) (*S3Location, error) {
+	if !strings.HasPrefix(path, "s3://") {
+		return nil, trace.Errorf("path has no s3 protocol specifier")
+	}
+
 	s3 := &S3Location{}
 	url, err := url.Parse(path)
 	if err != nil {
@@ -116,9 +120,13 @@ func parseS3Location(path string) (*S3Location, error) {
 	log.Infof("backup bucket: %v", s3.Bucket)
 
 	if len(splitPath) > 1 {
-		s3.Path = strings.Join(splitPath[1:], "")
+		s3.Path = strings.TrimSuffix(strings.Join(splitPath[1:], "/"), "/")
 	}
 	log.Infof("backup path: %v", s3.Path)
+
+	if s3.Bucket == "" {
+		return nil, trace.Errorf("no s3 bucket supplied")
+	}
 	return s3, nil
 }
 
