@@ -6,7 +6,7 @@ import (
 	"github.com/alecthomas/kingpin"
 	"github.com/gravitational/stolon/cmd/stolonctl/client"
 	"github.com/gravitational/stolon/cmd/stolonctl/cluster"
-	"github.com/gravitational/stolon/cmd/stolonctl/postgresql"
+	"github.com/gravitational/stolon/cmd/stolonctl/database"
 	"github.com/gravitational/stolon/pkg/util"
 	"github.com/gravitational/trace"
 
@@ -19,9 +19,9 @@ const (
 	EnvStoreKey          = "STOLONCTL_STORE_KEY"
 	EnvStoreCACert       = "STOLONCTL_STORE_CA_CERT"
 	EnvStoreCert         = "STOLONCTL_STORE_CERT"
-	EnvPGHost            = "STOLONCTL_PG_HOST"
-	EnvPGPort            = "STOLONCTL_PG_PORT"
-	EnvPGUsername        = "STOLONCTL_PG_USERNAME"
+	EnvDatabaseHost      = "STOLONCTL_DB_HOST"
+	EnvDatabasePort      = "STOLONCTL_DB_PORT"
+	EnvDatabaseUsername  = "STOLONCTL_DB_USERNAME"
 	EnvS3AccessKeyID     = "STOLONCTL_S3_ACCESS_KEY_ID"
 	EnvS3SecretAccessKey = "STOLONCTL_S3_SECRET_ACCESS_KEY"
 )
@@ -82,20 +82,20 @@ func (app *application) run() error {
 	cmdClusterList := cmdCluster.Command("list", "list clusters")
 
 	// postgres commands
-	cmdPG := app.Command("pg", "database operations")
+	cmdDatabase := app.Command("db", "database operations")
 
 	// backup
-	cmdPGBackup := cmdPG.Command("backup", "backup database")
-	cmdPGDatabaseName := cmdPGBackup.Arg("database-name", "database name").Required().String()
-	cmdPGBackupLocation := cmdPGBackup.Arg("path", "path to store backup").Required().String()
+	cmdDatabaseBackup := cmdDatabase.Command("backup", "backup database")
+	cmdDatabaseDatabaseName := cmdDatabaseBackup.Arg("database-name", "database name").Required().String()
+	cmdDatabaseBackupLocation := cmdDatabaseBackup.Arg("path", "path to store backup").Required().String()
 
-	var conn postgresql.ConnSettings
-	var s3 postgresql.S3Settings
-	cmdPGBackup.Flag("host", "database server host").Default("localhost").Envar(EnvPGHost).StringVar(&conn.Host)
-	cmdPGBackup.Flag("port", "database server port").Default("5432").Envar(EnvPGPort).StringVar(&conn.Port)
-	cmdPGBackup.Flag("username", "database user name").Default("postgres").Envar(EnvPGUsername).StringVar(&conn.Username)
-	cmdPGBackup.Flag("access-key", "S3 access key ID").Envar(EnvS3AccessKeyID).StringVar(&s3.AccessKeyID)
-	cmdPGBackup.Flag("secret-key", "S3 secret access key").Envar(EnvS3SecretAccessKey).StringVar(&s3.SecretAccessKey)
+	var conn database.ConnSettings
+	var s3 database.S3Settings
+	cmdDatabaseBackup.Flag("host", "database server host").Default("localhost").Envar(EnvDatabaseHost).StringVar(&conn.Host)
+	cmdDatabaseBackup.Flag("port", "database server port").Default("5432").Envar(EnvDatabasePort).StringVar(&conn.Port)
+	cmdDatabaseBackup.Flag("username", "database user name").Default("postgres").Envar(EnvDatabaseUsername).StringVar(&conn.Username)
+	cmdDatabaseBackup.Flag("access-key", "S3 access key ID").Envar(EnvS3AccessKeyID).StringVar(&s3.AccessKeyID)
+	cmdDatabaseBackup.Flag("secret-key", "S3 secret access key").Envar(EnvS3SecretAccessKey).StringVar(&s3.SecretAccessKey)
 
 	cmd, err := app.Parse(os.Args[1:])
 	if err != nil {
@@ -103,8 +103,8 @@ func (app *application) run() error {
 	}
 
 	switch cmd {
-	case cmdPGBackup.FullCommand():
-		return postgresql.Backup(conn, s3, *cmdPGDatabaseName, *cmdPGBackupLocation)
+	case cmdDatabaseBackup.FullCommand():
+		return database.Backup(conn, s3, *cmdDatabaseDatabaseName, *cmdDatabaseBackupLocation)
 	}
 
 	clt, err := client.New(cfg)
