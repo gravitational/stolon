@@ -7,6 +7,7 @@ import (
 	"github.com/gravitational/stolon/cmd/stolonctl/client"
 	"github.com/gravitational/stolon/cmd/stolonctl/cluster"
 	"github.com/gravitational/stolon/cmd/stolonctl/database"
+	"github.com/gravitational/stolon/cmd/stolonctl/store"
 	"github.com/gravitational/stolon/pkg/util"
 	"github.com/gravitational/trace"
 
@@ -90,10 +91,10 @@ func (app *application) run() error {
 	cmdDatabaseBackupLocation := cmdDatabaseBackup.Arg("path", "path to store backup").Required().String()
 
 	var conn database.ConnSettings
-	var s3 database.S3Settings
 	cmdDatabaseBackup.Flag("host", "database server host").Default("localhost").Envar(EnvDatabaseHost).StringVar(&conn.Host)
 	cmdDatabaseBackup.Flag("port", "database server port").Default("5432").Envar(EnvDatabasePort).StringVar(&conn.Port)
 	cmdDatabaseBackup.Flag("username", "database user name").Default("postgres").Envar(EnvDatabaseUsername).StringVar(&conn.Username)
+	var s3 store.S3Credentials
 	cmdDatabaseBackup.Flag("access-key", "S3 access key ID").Envar(EnvS3AccessKeyID).StringVar(&s3.AccessKeyID)
 	cmdDatabaseBackup.Flag("secret-key", "S3 secret access key").Envar(EnvS3SecretAccessKey).StringVar(&s3.SecretAccessKey)
 

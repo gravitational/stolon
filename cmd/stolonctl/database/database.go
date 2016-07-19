@@ -3,7 +3,6 @@ package database
 import (
 	"fmt"
 	"io/ioutil"
-	"net/url"
 	"os"
 	"os/exec"
 	"path"
@@ -12,7 +11,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gravitational/trace"
-	"github.com/minio/minio-go"
+
+	"github.com/gravitational/stolon/cmd/stolonctl/store"
 )
 
 type ConnSettings struct {
@@ -21,18 +21,7 @@ type ConnSettings struct {
 	Username string
 }
 
-type S3Settings struct {
-	AccessKeyID     string
-	SecretAccessKey string
-}
-
-type S3Location struct {
-	Host   string
-	Bucket string
-	Path   string
-}
-
-func Backup(connSettings ConnSettings, s3Settings S3Settings, dbName string, backupPath string) error {
+func Backup(connSettings ConnSettings, s3Cred store.S3Credentials, dbName string, backupPath string) error {
 	fileName := fmt.Sprintf(`%v_%v.sql.gz`, dbName, time.Now().Unix())
 	if strings.HasPrefix(backupPath, "s3://") {
 		tempDir, err := ioutil.TempDir("", "stolonctl")
@@ -48,7 +37,7 @@ func Backup(connSettings ConnSettings, s3Settings S3Settings, dbName string, bac
 			return trace.Wrap(err)
 		}
 
-		err = uploadToS3(s3Settings, result, backupPath)
+		err = store.UploadToS3(s3Cred, result, backupPath)
 		if err != nil {
 			return trace.Wrap(err)
 		}
@@ -74,60 +63,6 @@ func backupToFile(connSettings ConnSettings, dbName string, fileName string) err
 	}
 
 	return nil
-}
-
-func uploadToS3(s3Settings S3Settings, sourceFilename string, destination string) error {
-	ssl := true
-
-	location, err := parseS3Location(destination)
-	if err != nil {
-		return trace.Wrap(err)
-	}
-
-	client, err := minio.New(location.Host, s3Settings.AccessKeyID, s3Settings.SecretAccessKey, ssl)
-	if err != nil {
-		return trace.Wrap(err)
-	}
-
-	_, filename := path.Split(sourceFilename)
-
-	log.Infof("bucket: %v", location.Bucket)
-
-	n, err := client.FPutObject(location.Bucket, path.Join(location.Path, filename), sourceFilename, "application/gzip")
-	if err != nil {
-		return trace.Wrap(err)
-	}
-	log.Infof("Successfully uploaded %s of size %d\n", filename, n)
-	return nil
-}
-
-func parseS3Location(path string) (*S3Location, error) {
-	if !strings.HasPrefix(path, "s3://") {
-		return nil, trace.Errorf("path has no s3 protocol specifier")
-	}
-
-	s3 := &S3Location{}
-	url, err := url.Parse(path)
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-
-	s3.Host = url.Host
-	log.Infof("backup host: %v", s3.Host)
-
-	splitPath := strings.Split(strings.TrimPrefix(url.Path, "/"), "/")
-	s3.Bucket = splitPath[0]
-	log.Infof("backup bucket: %v", s3.Bucket)
-
-	if len(splitPath) > 1 {
-		s3.Path = strings.TrimSuffix(strings.Join(splitPath[1:], "/"), "/")
-	}
-	log.Infof("backup path: %v", s3.Path)
-
-	if s3.Bucket == "" {
-		return nil, trace.Errorf("no s3 bucket supplied")
-	}
-	return s3, nil
 }
 
 func pgDumpCommand(args ...string) *exec.Cmd {
