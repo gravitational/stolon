@@ -6,19 +6,19 @@ import (
 
 func TestParseBadS3Locations(t *testing.T) {
 	loc := "s3://foo"
-	_, err := parseS3Location(loc)
+	_, err := newS3Location(loc)
 	if err == nil {
 		t.Fatal("expected error parsing s3 location", loc)
 	}
 
 	loc = "s://foo/bucket/path"
-	_, err = parseS3Location(loc)
+	_, err = newS3Location(loc)
 	if err == nil {
 		t.Fatal("expected error parsing s3 location", loc)
 	}
 
 	loc = "/foo/bucket/path"
-	_, err = parseS3Location(loc)
+	_, err = newS3Location(loc)
 	if err == nil {
 		t.Fatal("expected error parsing s3 location", loc)
 	}
@@ -26,7 +26,7 @@ func TestParseBadS3Locations(t *testing.T) {
 
 func TestParseSimpleS3Locations(t *testing.T) {
 	loc := "s3://foo/bar/"
-	s3, err := parseS3Location(loc)
+	s3, err := newS3Location(loc)
 	if err != nil {
 		t.Fatal("expected success parsing s3 location", loc)
 	}
@@ -41,7 +41,7 @@ func TestParseSimpleS3Locations(t *testing.T) {
 	}
 
 	loc = "s3://foo/bar/path"
-	s3, err = parseS3Location(loc)
+	s3, err = newS3Location(loc)
 	if err != nil {
 		t.Fatal("expected success parsing s3 location", loc)
 	}
@@ -56,7 +56,7 @@ func TestParseSimpleS3Locations(t *testing.T) {
 	}
 
 	loc = "s3://foo/bar/long/path"
-	s3, err = parseS3Location(loc)
+	s3, err = newS3Location(loc)
 	if err != nil {
 		t.Fatal("expected success parsing s3 location", loc)
 	}
@@ -71,7 +71,7 @@ func TestParseSimpleS3Locations(t *testing.T) {
 	}
 
 	loc = "s3://foo/bar/long/path/"
-	s3, err = parseS3Location(loc)
+	s3, err = newS3Location(loc)
 	if err != nil {
 		t.Fatal("expected success parsing s3 location", loc)
 	}
