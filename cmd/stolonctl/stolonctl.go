@@ -82,21 +82,25 @@ func (app *application) run() error {
 	// list clusters
 	cmdClusterList := cmdCluster.Command("list", "list clusters")
 
-	// postgres commands
+	// database commands
 	cmdDatabase := app.Command("db", "database operations")
 
-	// backup
-	cmdDatabaseBackup := cmdDatabase.Command("backup", "backup database")
-	cmdDatabaseDatabaseName := cmdDatabaseBackup.Arg("database-name", "database name").Required().String()
-	cmdDatabaseBackupLocation := cmdDatabaseBackup.Arg("path", "path to store backup").Required().String()
+	var dbConn database.ConnSettings
+	cmdDatabase.Flag("host", "database server host").Default("localhost").Envar(EnvDatabaseHost).StringVar(&dbConn.Host)
+	cmdDatabase.Flag("port", "database server port").Default("5432").Envar(EnvDatabasePort).StringVar(&dbConn.Port)
+	cmdDatabase.Flag("username", "database user name").Default("postgres").Envar(EnvDatabaseUsername).StringVar(&dbConn.Username)
 
-	var conn database.ConnSettings
-	cmdDatabaseBackup.Flag("host", "database server host").Default("localhost").Envar(EnvDatabaseHost).StringVar(&conn.Host)
-	cmdDatabaseBackup.Flag("port", "database server port").Default("5432").Envar(EnvDatabasePort).StringVar(&conn.Port)
-	cmdDatabaseBackup.Flag("username", "database user name").Default("postgres").Envar(EnvDatabaseUsername).StringVar(&conn.Username)
-	var s3 store.S3Credentials
-	cmdDatabaseBackup.Flag("access-key", "S3 access key ID").Envar(EnvS3AccessKeyID).StringVar(&s3.AccessKeyID)
-	cmdDatabaseBackup.Flag("secret-key", "S3 secret access key").Envar(EnvS3SecretAccessKey).StringVar(&s3.SecretAccessKey)
+	var s3Cred store.S3Credentials
+	cmdDatabase.Flag("access-key", "S3 access key ID").Envar(EnvS3AccessKeyID).StringVar(&s3Cred.AccessKeyID)
+	cmdDatabase.Flag("secret-key", "S3 secret access key").Envar(EnvS3SecretAccessKey).StringVar(&s3Cred.SecretAccessKey)
+
+	// backup
+	cmdDatabaseBackup := cmdDatabase.Command("backup", "backup a database")
+	cmdDatabaseBackupName := cmdDatabaseBackup.Arg("name", "specifies the name of the database").Required().String()
+	cmdDatabaseBackupPath := cmdDatabaseBackup.Arg("path", "send output to the specified folder").Required().String()
+	// restore
+	cmdDatabaseRestore := cmdDatabase.Command("restore", "restore a database")
+	cmdDatabaseRestoreFile := cmdDatabaseRestore.Arg("file", "file with SQL commands").Required().String()
 
 	cmd, err := app.Parse(os.Args[1:])
 	if err != nil {
@@ -105,7 +109,9 @@ func (app *application) run() error {
 
 	switch cmd {
 	case cmdDatabaseBackup.FullCommand():
-		return database.Backup(conn, s3, *cmdDatabaseDatabaseName, *cmdDatabaseBackupLocation)
+		return database.Backup(dbConn, s3Cred, *cmdDatabaseBackupName, *cmdDatabaseBackupPath)
+	case cmdDatabaseRestore.FullCommand():
+		return database.Restore(dbConn, s3Cred, *cmdDatabaseRestoreFile)
 	}
 
 	clt, err := client.New(cfg)
