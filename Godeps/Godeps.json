@@ -1,7 +1,7 @@
 {
 	"ImportPath": "github.com/gravitational/stolon",
 	"GoVersion": "go1.5",
-	"GodepVersion": "v74",
+	"GodepVersion": "v62",
 	"Packages": [
 		"./..."
 	],
@@ -153,6 +153,11 @@
 			"ImportPath": "github.com/lib/pq/oid",
 			"Comment": "go1.0-cutoff-63-g11fc39a",
 			"Rev": "11fc39a580a008f1f39bb3d11d984fb34ed778d9"
+		},
+		{
+			"ImportPath": "github.com/minio/minio-go",
+			"Comment": "1.0.1-70-g126a1b7",
+			"Rev": "126a1b7f4111dd51ec02d73568d8e864239679f2"
 		},
 		{
 			"ImportPath": "github.com/satori/go.uuid",

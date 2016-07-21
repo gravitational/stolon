@@ -14,3 +14,8 @@ $(BINS):
 .PHONY: clean
 clean:
 	rm -rf $(BINS)
+
+.PHONY: test
+test:
+	go test -v -timeout 3m -cover -race ./cmd/... ./pkg/...
+
