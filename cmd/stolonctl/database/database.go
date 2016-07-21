@@ -21,42 +21,41 @@ type ConnSettings struct {
 	Username string
 }
 
-func Backup(conn ConnSettings, s3Cred store.S3Credentials, dbName string, destPath string) error {
+func Backup(conn ConnSettings, s3Cred store.S3Credentials, dbName string, dest string) error {
 	fileName := fmt.Sprintf(`%v_%v.sql.gz`, dbName, time.Now().Unix())
-	if strings.HasPrefix(destPath, "s3://") {
-		tempDir, err := ioutil.TempDir("", "stolonctl")
-		if err != nil {
-			return trace.Wrap(err)
-		}
 
-		defer os.RemoveAll(tempDir)
-
-		result := path.Join(tempDir, fileName)
-		err = backupToFile(conn, dbName, result)
-		if err != nil {
-			return trace.Wrap(err)
-		}
-
-		err = store.UploadToS3(s3Cred, result, destPath)
-		if err != nil {
-			return trace.Wrap(err)
-		}
-
-		return nil
-	} else {
-		result := path.Join(destPath, fileName)
+	if !strings.HasPrefix(dest, "s3://") {
+		result := path.Join(dest, fileName)
 		return backupToFile(conn, dbName, result)
 	}
+
+	tempDir, err := ioutil.TempDir("", "stolonctl")
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	result := path.Join(tempDir, fileName)
+	err = backupToFile(conn, dbName, result)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	err = store.UploadToS3(s3Cred, result, dest)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	return nil
 }
 
-func backupToFile(conn ConnSettings, dbName string, filePath string) error {
-	log.Infof("Backup database %v to %v", dbName, filePath)
+func backupToFile(conn ConnSettings, dbName, dest string) error {
+	log.Infof("Backup database %s to %s", dbName, dest)
 
 	cmd := pgDumpCommand(
 		"--host", conn.Host,
 		"--port", conn.Port,
 		"--username", conn.Username,
-		"--file", filePath,
+		"--file", dest,
 		"--compress", "6",
 		"--format", "custom",
 		dbName)
@@ -75,18 +74,32 @@ func pgDumpCommand(args ...string) *exec.Cmd {
 	return exec.Command("pg_dump", args...)
 }
 
-func Restore(conn ConnSettings, s3Cred store.S3Credentials, srcPath string) error {
-	return restoreFromFile(conn, srcPath)
+func Restore(conn ConnSettings, s3Cred store.S3Credentials, src string) error {
+	if !strings.HasPrefix(src, "s3://") {
+		return restoreFromFile(conn, src)
+	}
+
+	tempDir, err := ioutil.TempDir("", "stolonctl")
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	result, err := store.DownloadFromS3(s3Cred, src, tempDir)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	return restoreFromFile(conn, result)
 }
 
-func restoreFromFile(conn ConnSettings, fileName string) error {
-	log.Infof("Restore from %v", fileName)
+func restoreFromFile(conn ConnSettings, src string) error {
+	log.Infof("Restore from %s", src)
 
 	cmd := pgRestoreCommand(
 		"--host", conn.Host,
 		"--port", conn.Port,
 		"--username", conn.Username,
-		fileName)
+		src)
 	out, err := cmd.CombinedOutput()
 	if len(out) > 0 {
 		log.Infof("cmd output: %s", string(out))

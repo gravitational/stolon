@@ -45,7 +45,7 @@ func newS3Location(path string) (*S3Location, error) {
 		return nil, trace.Errorf("no s3 bucket supplied")
 	}
 
-	log.Infof("Backup host: %v, bucket: %v, path: %v", loc.Host, loc.Bucket, loc.Path)
+	log.Infof("host: %s, bucket: %s, path: %s", loc.Host, loc.Bucket, loc.Path)
 
 	return loc, nil
 }
@@ -70,4 +70,26 @@ func UploadToS3(cred S3Credentials, src string, dest string) error {
 	log.Infof("Successfully uploaded %s of size %d", filename, n)
 
 	return nil
+}
+
+func DownloadFromS3(cred S3Credentials, src string, dest string) (string, error) {
+	loc, err := newS3Location(src)
+	if err != nil {
+		return "", trace.Wrap(err)
+	}
+
+	client, err := minio.New(loc.Host, cred.AccessKeyID, cred.SecretAccessKey, true)
+	if err != nil {
+		return "", trace.Wrap(err)
+	}
+
+	dest = path.Join(dest, path.Base(src))
+	err = client.CopyObject(loc.Bucket, src, dest, minio.NewCopyConditions())
+	if err != nil {
+		return "", trace.Wrap(err)
+	}
+
+	log.Infof("Successfully downloaded %s", dest)
+
+	return dest, nil
 }
