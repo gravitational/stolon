@@ -58,7 +58,7 @@ func backupToFile(conn ConnSettings, dbName, dest string) error {
 		"--file", dest,
 		"--compress", "6",
 		"--format", "custom",
-		dbName)
+		"--no-password", dbName)
 	out, err := cmd.CombinedOutput()
 	if len(out) > 0 {
 		log.Infof("cmd output: %s", string(out))
@@ -99,7 +99,7 @@ func restoreFromFile(conn ConnSettings, src string) error {
 		"--host", conn.Host,
 		"--port", conn.Port,
 		"--username", conn.Username,
-		src)
+		"--no-password", src)
 	out, err := cmd.CombinedOutput()
 	if len(out) > 0 {
 		log.Infof("cmd output: %s", string(out))
