@@ -93,13 +93,18 @@ func (app *application) run() error {
 	var s3Cred store.S3Credentials
 	cmdDatabase.Flag("access-key", "S3 access key ID").Envar(EnvS3AccessKeyID).StringVar(&s3Cred.AccessKeyID)
 	cmdDatabase.Flag("secret-key", "S3 secret access key").Envar(EnvS3SecretAccessKey).StringVar(&s3Cred.SecretAccessKey)
-
+	// create
+	cmdDatabaseCreate := cmdDatabase.Command("create", "create the database")
+	cmdDatabaseCreateName := cmdDatabaseCreate.Arg("name", "specifies the name of the database").Required().String()
+	// delete
+	cmdDatabaseDelete := cmdDatabase.Command("delete", "delete the database")
+	cmdDatabaseDeleteName := cmdDatabaseDelete.Arg("name", "specifies the name of the database").Required().String()
 	// backup
-	cmdDatabaseBackup := cmdDatabase.Command("backup", "backup a database")
+	cmdDatabaseBackup := cmdDatabase.Command("backup", "backup the database")
 	cmdDatabaseBackupName := cmdDatabaseBackup.Arg("name", "specifies the name of the database").Required().String()
 	cmdDatabaseBackupPath := cmdDatabaseBackup.Arg("path", "send output to the specified folder").Required().String()
 	// restore
-	cmdDatabaseRestore := cmdDatabase.Command("restore", "restore a database")
+	cmdDatabaseRestore := cmdDatabase.Command("restore", "restore the database")
 	cmdDatabaseRestoreFile := cmdDatabaseRestore.Arg("file", "file with SQL commands").Required().String()
 
 	cmd, err := app.Parse(os.Args[1:])
@@ -108,6 +113,10 @@ func (app *application) run() error {
 	}
 
 	switch cmd {
+	case cmdDatabaseCreate.FullCommand():
+		return database.Create(dbConn, *cmdDatabaseCreateName)
+	case cmdDatabaseDelete.FullCommand():
+		return database.Delete(dbConn, *cmdDatabaseDeleteName)
 	case cmdDatabaseBackup.FullCommand():
 		return database.Backup(dbConn, s3Cred, *cmdDatabaseBackupName, *cmdDatabaseBackupPath)
 	case cmdDatabaseRestore.FullCommand():

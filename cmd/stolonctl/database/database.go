@@ -114,3 +114,47 @@ func restoreFromFile(conn ConnSettings, src string) error {
 func pgRestoreCommand(args ...string) *exec.Cmd {
 	return exec.Command("pg_restore", args...)
 }
+
+func Create(conn ConnSettings, name string) error {
+	log.Infof("Creating %s", name)
+
+	err := psqlExecCommand(conn, fmt.Sprintf("CREATE DATABASE %s;", name))
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	return nil
+}
+
+func Delete(conn ConnSettings, name string) error {
+	log.Infof("Deleting %s", name)
+
+	err := psqlExecCommand(conn, fmt.Sprintf("DROP DATABASE %s;", name))
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	return nil
+}
+
+func psqlExecCommand(conn ConnSettings, exp string) error {
+	cmd := psqlCommand(
+		"--host", conn.Host,
+		"--port", conn.Port,
+		"--username", conn.Username,
+		"--command", exp,
+		"--no-password")
+	out, err := cmd.CombinedOutput()
+	if len(out) > 0 {
+		log.Infof("cmd output: %s", string(out))
+	}
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	return nil
+}
+
+func psqlCommand(args ...string) *exec.Cmd {
+	return exec.Command("psql", args...)
+}
