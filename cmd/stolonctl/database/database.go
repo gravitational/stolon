@@ -114,3 +114,68 @@ func restoreFromFile(conn ConnSettings, src string) error {
 func pgRestoreCommand(args ...string) *exec.Cmd {
 	return exec.Command("pg_restore", args...)
 }
+
+func Create(conn ConnSettings, name string) error {
+	log.Infof("Creating %s", name)
+
+	err := psqlExecCommand(conn, fmt.Sprintf("CREATE DATABASE %s;", name))
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	return nil
+}
+
+func Delete(conn ConnSettings, name string) error {
+	log.Infof("Deleting %s", name)
+
+	err := psqlExecCommand(conn, fmt.Sprintf("DROP DATABASE %s;", name))
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	return nil
+}
+
+func Run(conn ConnSettings, filename string) error {
+	log.Infof("Running file %s", filename)
+
+	cmd := basePsqlCommand(conn, "--file", filename)
+	out, err := cmd.CombinedOutput()
+	if len(out) > 0 {
+		log.Infof("cmd output: %s", string(out))
+	}
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	return nil
+}
+
+func psqlExecCommand(conn ConnSettings, exp string) error {
+	cmd := basePsqlCommand(conn, "--command", exp)
+	out, err := cmd.CombinedOutput()
+	if len(out) > 0 {
+		log.Infof("cmd output: %s", string(out))
+	}
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	return nil
+}
+
+func basePsqlCommand(conn ConnSettings, args ...string) *exec.Cmd {
+	connArgs := []string{
+		"--host", conn.Host,
+		"--port", conn.Port,
+		"--username", conn.Username,
+		"--no-password",
+	}
+	connArgs = append(connArgs, args...)
+	return psqlCommand(connArgs...)
+}
+
+func psqlCommand(args ...string) *exec.Cmd {
+	return exec.Command("psql", args...)
+}
