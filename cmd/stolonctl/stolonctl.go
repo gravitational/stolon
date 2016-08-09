@@ -99,6 +99,9 @@ func (app *application) run() error {
 	// delete
 	cmdDatabaseDelete := cmdDatabase.Command("delete", "delete the database")
 	cmdDatabaseDeleteName := cmdDatabaseDelete.Arg("name", "specifies the name of the database").Required().String()
+	// run
+	cmdDatabaseRun := cmdDatabase.Command("run", "run a script")
+	cmdDatabaseRunFilename := cmdDatabaseRun.Arg("file", "specifies the filename of a script to run").Required().String()
 	// backup
 	cmdDatabaseBackup := cmdDatabase.Command("backup", "backup the database")
 	cmdDatabaseBackupName := cmdDatabaseBackup.Arg("name", "specifies the name of the database").Required().String()
@@ -117,6 +120,8 @@ func (app *application) run() error {
 		return database.Create(dbConn, *cmdDatabaseCreateName)
 	case cmdDatabaseDelete.FullCommand():
 		return database.Delete(dbConn, *cmdDatabaseDeleteName)
+	case cmdDatabaseRun.FullCommand():
+		return database.Run(dbConn, *cmdDatabaseRunFilename)
 	case cmdDatabaseBackup.FullCommand():
 		return database.Backup(dbConn, s3Cred, *cmdDatabaseBackupName, *cmdDatabaseBackupPath)
 	case cmdDatabaseRestore.FullCommand():

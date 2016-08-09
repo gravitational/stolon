@@ -137,13 +137,10 @@ func Delete(conn ConnSettings, name string) error {
 	return nil
 }
 
-func psqlExecCommand(conn ConnSettings, exp string) error {
-	cmd := psqlCommand(
-		"--host", conn.Host,
-		"--port", conn.Port,
-		"--username", conn.Username,
-		"--command", exp,
-		"--no-password")
+func Run(conn ConnSettings, filename string) error {
+	log.Infof("Running file %s", filename)
+
+	cmd := basePsqlCommand(conn, "--file", filename)
 	out, err := cmd.CombinedOutput()
 	if len(out) > 0 {
 		log.Infof("cmd output: %s", string(out))
@@ -153,6 +150,30 @@ func psqlExecCommand(conn ConnSettings, exp string) error {
 	}
 
 	return nil
+}
+
+func psqlExecCommand(conn ConnSettings, exp string) error {
+	cmd := basePsqlCommand(conn, "--command", exp)
+	out, err := cmd.CombinedOutput()
+	if len(out) > 0 {
+		log.Infof("cmd output: %s", string(out))
+	}
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	return nil
+}
+
+func basePsqlCommand(conn ConnSettings, args ...string) *exec.Cmd {
+	connArgs := []string{
+		"--host", conn.Host,
+		"--port", conn.Port,
+		"--username", conn.Username,
+		"--no-password",
+	}
+	connArgs = append(connArgs, args...)
+	return psqlCommand(connArgs...)
 }
 
 func psqlCommand(args ...string) *exec.Cmd {
