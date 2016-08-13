@@ -35,38 +35,82 @@ Stolon is under active development and used in different environments. Probably 
 
 Anyway it's quite easy to reset a cluster from scratch keeping the current master instance working and without losing any data.
 
-## Requirements
+## Development
 
-* PostgreSQL >= 9.4
+### Requirements
+
+* golang 1.5
+* postgresql >= 9.4
 * etcd >= 2.0 or consul >=0.6
 
+### Build
 
-## build
-
+```sh
+make
 ```
+
+### Run
+
+We need a compatible etcd version, easiest way to get it and setup is:
+
+```sh
+# install some tools for local development
+make install-dev-tools
+
+# restore deps
+godep restore ./...
+
+# build etcd
+cd $GOPATH/src/github.com/coreos/etcd
 ./build
+
+# create dev cluster with tls
+cd hack/tls-setup
+make
+goreman start
 ```
 
-## test
+And then in project dir you can launch:
+
+```sh
+make start
+```
+
+It will launch the setup similar to [simple cluster example](doc/simplecluster.md),
+
+### Tests
 
 Basic go tests can be launched like:
-```
-./test
-```
 
-Also you might want to launch [integration tests](tests/integration) locally. These tests use real backends, in this exapmle I'll use etcd and postgresql 9.4. If you are capable of running stolon locally, for example using [simple cluster example](doc/simplecluster.md), you will launch tests like:
 ```sh
-$ time PATH=/usr/lib/postgresql/9.4/bin/:$PATH INTEGRATION=1 STOLON_TEST_STORE_BACKEND=etcd ETCD_BIN=$GOPATH/src/github.com/coreos/etcd/bin/etcd ./test
+make test
 ```
 
-**Note** Your postgres service should be stopped before this. Check it with:
+Also you might want to launch [integration tests](tests/integration) locally:
+
+```sh
+make test-integration
+```
+
+**Note**: These tests use real backends, in this exapmle I'll use etcd and
+postgresql 9.4. If you are capable of running stolon locally,
+for example using [simple cluster example](doc/simplecluster.md),
+you will launch tests like:
+
+```sh
+$ PATH=/usr/lib/postgresql/9.4/bin/:$PATH INTEGRATION=1 STOLON_TEST_STORE_BACKEND=etcd ETCD_BIN=$GOPATH/src/github.com/coreos/etcd/bin/etcd ./test
+```
+
+Your postgres service should be stopped before this. Check it with:
 ```sh
 $ sudo systemctl status postgresql
 # Stop if needed
 $ sudo systemctl stop postgresql
 ```
 
-If system is loaded, tests can hang or leave daemonized postgresql processes, so to be on the safe side check for them with:
+If your local system is loaded, tests can hang or leave daemonized postgresql
+processes, so to be on the safe side, check them with:
+
 ```sh
 $ pidof postgres
 # Kill if needed
