@@ -184,7 +184,7 @@ func basePsqlCommand(conn ConnSettings, args ...string) *exec.Cmd {
 		"--host", conn.Host,
 		"--port", conn.Port,
 		"--username", conn.Username,
-		"--no-password",
+		"--no-password", "postgres",
 	}
 	connArgs = append(connArgs, args...)
 	return psqlCommand(connArgs...)
