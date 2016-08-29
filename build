@@ -52,16 +52,22 @@ if [ -z $use_go_install ]; then
 	for cmd in sentinel proxy; do
 		CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags '-s' -o ${BINDIR}/stolon-${cmd} ${REPO_PATH}/cmd/${cmd}
 	done
-	CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags '-s' -o ${BINDIR}/stolonctl ${REPO_PATH}/cmd/stolonctl
+
+	for cmd in stolonctl stolonrpc; do
+		CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags '-s' -o ${BINDIR}/${cmd} ${REPO_PATH}/cmd/${cmd}
+	done
 else
 	for cmd in sentinel proxy; do
 		CGO_ENABLED=0 go install -installsuffix cgo -ldflags '-s' ${REPO_PATH}/cmd/${cmd}
 		rm -f ${BINDIR}/stolon-${cmd}
 		cp ${GOPATH}/bin/${cmd} ${BINDIR}/stolon-${cmd}
 	done
-	CGO_ENABLED=0 go install -installsuffix cgo -ldflags '-s' ${REPO_PATH}/cmd/stolonctl
-	rm -f ${BINDIR}/stolonctl
-	cp ${GOPATH}/bin/stolonctl ${BINDIR}/
+
+	for cmd in stolonctl stolonrpc; do
+		CGO_ENABLED=0 go install -installsuffix cgo -ldflags '-s' ${REPO_PATH}/cmd/${cmd}
+		rm -f ${BINDIR}/${cmd}
+		cp ${GOPATH}/bin/${cmd} ${BINDIR}/
+	done
 fi
 
 # stolon-keeper cannot be statically built since it needs to get its current

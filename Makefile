@@ -1,14 +1,19 @@
-BINS := bin/stolon-keeper bin/stolon-proxy bin/stolon-sentinel bin/stolonctl
+NOROOT := -u $$(id -u):$$(id -g)
+SRCDIR := /go/src/github.com/gravitational/stolon
+DOCKERFLAGS := --rm=true $(NOROOT) -v $(PWD):$(SRCDIR) -w $(SRCDIR) -e GO15VENDOREXPERIMENT=1
+BUILDIMAGE := golang:1.5.4
+BINS := bin
 PG_BINS_PATH ?= /usr/lib/postgresql/9.5/bin
 
 .PHONY: all
-all: clean $(BINS)
+all: clean
+	docker run $(DOCKERFLAGS) $(BUILDIMAGE) make $(BINS)
 
-$(BINS):
+$(BINS): clean
 	./build
 
-.PHONY: run
-run: $(BINS)
+.PHONY: start
+start: $(BINS)
 	goreman start
 
 .PHONY: clean
