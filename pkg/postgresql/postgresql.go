@@ -30,13 +30,9 @@ import (
 
 	"github.com/gravitational/stolon/common"
 
-	"github.com/coreos/pkg/capnslog"
+	log "github.com/Sirupsen/logrus"
 	_ "github.com/lib/pq"
 	"golang.org/x/net/context"
-)
-
-var (
-	log = capnslog.NewPackageLogger("github.com/gravitational/stolon/pkg", "postgresql")
 )
 
 type Manager struct {
