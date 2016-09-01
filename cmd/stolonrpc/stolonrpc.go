@@ -12,6 +12,8 @@ import (
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/gravitational/stolon/pkg/postgresql"
+	"github.com/gravitational/stolon/pkg/store"
 	"github.com/gravitational/trace"
 	"github.com/kelseyhightower/envconfig"
 )
@@ -26,6 +28,8 @@ type Config struct {
 	DatabaseHost      string `envconfig:"STOLONRPC_DB_HOST"`
 	DatabasePort      string `envconfig:"STOLONRPC_DB_PORT"`
 	DatabaseUsername  string `envconfig:"STOLONRPC_DB_USERNAME"`
+	S3AccessKeyID     string `envconfig:"STOLONRPC_S3_ACCESS_KEY_ID"`
+	S3SecretAccessKey string `envconfig:"STOLONRPC_S3_SECRET_ACCESS_KEY"`
 }
 
 func GetConfig() (*Config, error) {
@@ -64,10 +68,18 @@ func main() {
 	}
 	log.Infof("Start with config: %+v", c)
 
-	op := new(Operation)
-	op.Host = c.DatabaseHost
-	op.Port = c.DatabasePort
-	op.Username = c.DatabaseUsername
+	op := new(DatabaseOperation)
+	dbConn := postgresql.ConnSettings{
+		Host:     c.DatabaseHost,
+		Port:     c.DatabasePort,
+		Username: c.DatabaseUsername,
+	}
+	op.dbConn = dbConn
+	s3Cred := store.S3Credentials{
+		AccessKeyID:     c.S3AccessKeyID,
+		SecretAccessKey: c.S3SecretAccessKey,
+	}
+	op.s3Cred = s3Cred
 	rpc.Register(op)
 	rpc.HandleHTTP()
 

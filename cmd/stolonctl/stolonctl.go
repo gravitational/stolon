@@ -21,7 +21,8 @@ import (
 	"github.com/gravitational/stolon/cmd/stolonctl/client"
 	"github.com/gravitational/stolon/cmd/stolonctl/cluster"
 	"github.com/gravitational/stolon/cmd/stolonctl/database"
-	"github.com/gravitational/stolon/cmd/stolonctl/store"
+	"github.com/gravitational/stolon/pkg/postgresql"
+	"github.com/gravitational/stolon/pkg/store"
 	"github.com/gravitational/stolon/pkg/util"
 	"github.com/gravitational/trace"
 
@@ -99,14 +100,11 @@ func (app *application) run() error {
 	// database commands
 	cmdDatabase := app.Command("db", "database operations")
 
-	var dbConn database.ConnSettings
+	var dbConn postgresql.ConnSettings
 	cmdDatabase.Flag("host", "database server host").Default("localhost").Envar(EnvDatabaseHost).StringVar(&dbConn.Host)
 	cmdDatabase.Flag("port", "database server port").Default("5432").Envar(EnvDatabasePort).StringVar(&dbConn.Port)
 	cmdDatabase.Flag("username", "database user name").Default("postgres").Envar(EnvDatabaseUsername).StringVar(&dbConn.Username)
 
-	var s3Cred store.S3Credentials
-	cmdDatabase.Flag("access-key", "S3 access key ID").Envar(EnvS3AccessKeyID).StringVar(&s3Cred.AccessKeyID)
-	cmdDatabase.Flag("secret-key", "S3 secret access key").Envar(EnvS3SecretAccessKey).StringVar(&s3Cred.SecretAccessKey)
 	// create
 	cmdDatabaseCreate := cmdDatabase.Command("create", "create the database")
 	cmdDatabaseCreateName := cmdDatabaseCreate.Arg("name", "specifies the name of the database").Required().String()
@@ -116,6 +114,11 @@ func (app *application) run() error {
 	// run
 	cmdDatabaseRun := cmdDatabase.Command("run", "run a script")
 	cmdDatabaseRunFilename := cmdDatabaseRun.Arg("file", "specifies the filename of a script to run").Required().String()
+
+	var s3Cred store.S3Credentials
+	cmdDatabase.Flag("access-key", "S3 access key ID").Envar(EnvS3AccessKeyID).StringVar(&s3Cred.AccessKeyID)
+	cmdDatabase.Flag("secret-key", "S3 secret access key").Envar(EnvS3SecretAccessKey).StringVar(&s3Cred.SecretAccessKey)
+
 	// backup
 	cmdDatabaseBackup := cmdDatabase.Command("backup", "backup the database")
 	cmdDatabaseBackupName := cmdDatabaseBackup.Arg("name", "specifies the name of the database").Required().String()
