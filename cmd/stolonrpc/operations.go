@@ -26,7 +26,7 @@ func (o *DatabaseOperation) Create(name string, reply *string) error {
 	}
 
 	*reply = fmt.Sprintf("Database '%s' was successfully created", name)
-	log.Info(reply)
+	log.Info(*reply)
 	return nil
 }
 
@@ -38,7 +38,7 @@ func (o *DatabaseOperation) Delete(name string, reply *string) error {
 	}
 
 	*reply = fmt.Sprintf("Database '%s' was successfully deleted", name)
-	log.Info(reply)
+	log.Info(*reply)
 	return nil
 }
 
@@ -50,7 +50,7 @@ func (o *DatabaseOperation) Backup(args *BackupArgs, reply *string) error {
 	}
 
 	*reply = fmt.Sprintf("Database '%s' was successfully backuped to '%s'", args.Name, args.Path)
-	log.Info(reply)
+	log.Info(*reply)
 	return nil
 }
 
@@ -62,6 +62,6 @@ func (o *DatabaseOperation) Restore(src string, reply *string) error {
 	}
 
 	*reply = fmt.Sprintf("Database was successfully restored from '%s'", src)
-	log.Info(reply)
+	log.Info(*reply)
 	return nil
 }
