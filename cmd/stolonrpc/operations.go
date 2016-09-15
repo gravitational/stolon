@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gravitational/stolon/pkg/postgresql"
@@ -14,54 +15,58 @@ type DatabaseOperation struct {
 	s3Cred store.S3Credentials
 }
 
-type BackupArgs struct {
+type Args struct {
 	Name, Path string
 }
 
-func (o *DatabaseOperation) Create(name string, reply *string) error {
-	log.Infof("Execute: create database '%s'", name)
-	if err := postgresql.Create(o.dbConn, name); err != nil {
+type Reply struct {
+	Message string
+}
+
+func (o *DatabaseOperation) Create(r *http.Request, args *Args, reply *Reply) error {
+	log.Infof("Execute: create database '%s'", args.Name)
+	if err := postgresql.Create(o.dbConn, args.Name); err != nil {
 		log.Error(err)
 		return trace.Wrap(err)
 	}
 
-	*reply = fmt.Sprintf("Database '%s' was successfully created", name)
-	log.Info(*reply)
+	reply.Message = fmt.Sprintf("Database '%s' was successfully created", args.Name)
+	// log.Info(reply.Message)
 	return nil
 }
 
-func (o *DatabaseOperation) Delete(name string, reply *string) error {
-	log.Infof("Execute: delete database '%s'", name)
-	if err := postgresql.Delete(o.dbConn, name); err != nil {
+func (o *DatabaseOperation) Delete(r *http.Request, args *Args, reply *Reply) error {
+	log.Infof("Execute: delete database '%s'", args.Name)
+	if err := postgresql.Delete(o.dbConn, args.Name); err != nil {
 		log.Error(err)
 		return trace.Wrap(err)
 	}
 
-	*reply = fmt.Sprintf("Database '%s' was successfully deleted", name)
-	log.Info(*reply)
+	reply.Message = fmt.Sprintf("Database '%s' was successfully deleted", args.Name)
+	log.Info(reply.Message)
 	return nil
 }
 
-func (o *DatabaseOperation) Backup(args *BackupArgs, reply *string) error {
+func (o *DatabaseOperation) Backup(r *http.Request, args *Args, reply *Reply) error {
 	log.Infof("Execute: backup database '%s' to '%s'", args.Name, args.Path)
 	if err := postgresql.Backup(o.dbConn, o.s3Cred, args.Name, args.Path); err != nil {
 		log.Error(err)
 		return trace.Wrap(err)
 	}
 
-	*reply = fmt.Sprintf("Database '%s' was successfully backuped to '%s'", args.Name, args.Path)
-	log.Info(*reply)
+	reply.Message = fmt.Sprintf("Database '%s' was successfully backuped to '%s'", args.Name, args.Path)
+	log.Info(reply.Message)
 	return nil
 }
 
-func (o *DatabaseOperation) Restore(src string, reply *string) error {
-	log.Infof("Execute: restore database from '%s'", src)
-	if err := postgresql.Restore(o.dbConn, o.s3Cred, src); err != nil {
+func (o *DatabaseOperation) Restore(r *http.Request, args *Args, reply *Reply) error {
+	log.Infof("Execute: restore database from '%s'", args.Path)
+	if err := postgresql.Restore(o.dbConn, o.s3Cred, args.Path); err != nil {
 		log.Error(err)
 		return trace.Wrap(err)
 	}
 
-	*reply = fmt.Sprintf("Database was successfully restored from '%s'", src)
-	log.Info(*reply)
+	reply.Message = fmt.Sprintf("Database was successfully restored from '%s'", args.Path)
+	log.Info(reply.Message)
 	return nil
 }
