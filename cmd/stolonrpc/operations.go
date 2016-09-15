@@ -31,7 +31,7 @@ func (o *DatabaseOperation) Create(r *http.Request, args *Args, reply *Reply) er
 	}
 
 	reply.Message = fmt.Sprintf("Database '%s' was successfully created", args.Name)
-	// log.Info(reply.Message)
+	log.Info(reply.Message)
 	return nil
 }
 
