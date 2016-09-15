@@ -1,7 +1,7 @@
 {
 	"ImportPath": "github.com/gravitational/stolon",
-	"GoVersion": "go1.5",
-	"GodepVersion": "v62",
+	"GoVersion": "go1.7",
+	"GodepVersion": "v74",
 	"Packages": [
 		"./..."
 	],
@@ -104,11 +104,11 @@
 			"ImportPath": "github.com/gorilla/mux",
 			"Rev": "ad4d7a5882b961e07e2626045eb995c022ac6664"
 		},
-    {
+		{
 			"ImportPath": "github.com/gorilla/rpc",
 			"Rev": "e592e2e099465ae27afa66ec089d570904cd2d53"
 		},
-    {
+		{
 			"ImportPath": "github.com/gorilla/rpc/json",
 			"Rev": "e592e2e099465ae27afa66ec089d570904cd2d53"
 		},
@@ -146,6 +146,11 @@
 		{
 			"ImportPath": "github.com/kballard/go-shellquote",
 			"Rev": "e5c918b80c17694cbc49aab32a759f9a40067f5d"
+		},
+		{
+			"ImportPath": "github.com/kelseyhightower/envconfig",
+			"Comment": "1.1.0-17-g91921eb",
+			"Rev": "91921eb4cf999321cdbeebdba5a03555800d493b"
 		},
 		{
 			"ImportPath": "github.com/kr/pty",
@@ -212,11 +217,6 @@
 			"ImportPath": "k8s.io/kubernetes/third_party/forked/json",
 			"Comment": "v1.2.0-alpha.2-603-g7b8bf75",
 			"Rev": "7b8bf758f3b67634fd001eb7cf6b5a9b481528c1"
-		},
-    {
-			"ImportPath": "github.com/kelseyhightower/envconfig",
-			"Comment": "1.1.0-17-g91921eb",
-			"Rev": "91921eb4cf999321cdbeebdba5a03555800d493b"
 		}
 	]
 }
