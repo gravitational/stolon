@@ -4,7 +4,6 @@ import (
 	"errors"
 	"net"
 	"net/http"
-	"net/rpc"
 	"os"
 	"os/signal"
 	"strings"
@@ -16,6 +15,10 @@ import (
 	"github.com/gravitational/stolon/pkg/store"
 	"github.com/gravitational/trace"
 	"github.com/kelseyhightower/envconfig"
+
+	"github.com/gorilla/mux"
+	"github.com/gorilla/rpc"
+	"github.com/gorilla/rpc/json"
 )
 
 var (
@@ -68,24 +71,31 @@ func main() {
 	}
 	log.Infof("Start with config: %+v", c)
 
-	op := new(DatabaseOperation)
+	s := rpc.NewServer()
+	s.RegisterCodec(json.NewCodec(), "application/json")
+	s.RegisterCodec(json.NewCodec(), "application/json;charset=UTF-8")
+
 	dbConn := postgresql.ConnSettings{
 		Host:     c.DatabaseHost,
 		Port:     c.DatabasePort,
 		Username: c.DatabaseUsername,
 	}
-	op.dbConn = dbConn
 	s3Cred := store.S3Credentials{
 		AccessKeyID:     c.S3AccessKeyID,
 		SecretAccessKey: c.S3SecretAccessKey,
 	}
+	op := new(DatabaseOperation)
+	op.dbConn = dbConn
 	op.s3Cred = s3Cred
-	rpc.Register(op)
-	rpc.HandleHTTP()
+
+	s.RegisterService(op, "DatabaseOperation")
+
+	r := mux.NewRouter()
+	r.Handle("/rpc", s)
 
 	errChan := make(chan error, 1)
 	go func() {
-		errChan <- http.ListenAndServe(net.JoinHostPort("", c.Port), nil)
+		errChan <- http.ListenAndServe(net.JoinHostPort("", c.Port), r)
 	}()
 
 	signalChan := make(chan os.Signal, 1)
