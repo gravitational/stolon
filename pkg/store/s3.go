@@ -35,20 +35,20 @@ type S3Location struct {
 	Path   string
 }
 
-func newS3Location(path string) (*S3Location, error) {
-	if !strings.HasPrefix(path, "s3://") {
+func newS3Location(rawURL string) (*S3Location, error) {
+	if !strings.HasPrefix(rawURL, "s3://") {
 		return nil, trace.Errorf("path has no s3 protocol specifier")
 	}
 
 	loc := &S3Location{}
-	url, err := url.Parse(path)
+
+	parsedURL, err := url.Parse(rawURL)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
+	loc.Host = parsedURL.Host
 
-	loc.Host = url.Host
-
-	splitPath := strings.Split(strings.TrimPrefix(url.Path, "/"), "/")
+	splitPath := strings.Split(strings.TrimPrefix(parsedURL.Path, "/"), "/")
 	loc.Bucket = splitPath[0]
 
 	if len(splitPath) > 1 {
@@ -64,26 +64,27 @@ func newS3Location(path string) (*S3Location, error) {
 	return loc, nil
 }
 
-func UploadToS3(cred S3Credentials, src string, dest string) error {
+func UploadToS3(cred S3Credentials, src, dest string) (string, error) {
+	log.Infof("Uploading %s to %s", src, dest)
 	loc, err := newS3Location(dest)
 	if err != nil {
-		return trace.Wrap(err)
+		return "", trace.Wrap(err)
 	}
 
 	client, err := minio.New(loc.Host, cred.AccessKeyID, cred.SecretAccessKey, true)
 	if err != nil {
-		return trace.Wrap(err)
+		return "", trace.Wrap(err)
 	}
 
 	_, filename := path.Split(src)
-	n, err := client.FPutObject(loc.Bucket, path.Join(loc.Path, filename), src, "application/gzip")
+	dest = path.Join(loc.Path, filename)
+	uploadedSize, err := client.FPutObject(loc.Bucket, dest, src, "application/gzip")
 	if err != nil {
-		return trace.Wrap(err)
+		return "", trace.Wrap(err)
 	}
+	log.Infof("Successfully uploaded '%s' of size %d", dest, uploadedSize)
 
-	log.Infof("Successfully uploaded %s of size %d", filename, n)
-
-	return nil
+	return dest, nil
 }
 
 func DownloadFromS3(cred S3Credentials, src string, dest string) (string, error) {
@@ -102,7 +103,6 @@ func DownloadFromS3(cred S3Credentials, src string, dest string) (string, error)
 	if err != nil {
 		return "", trace.Wrap(err)
 	}
-
 	log.Infof("Successfully downloaded %s", dest)
 
 	return dest, nil

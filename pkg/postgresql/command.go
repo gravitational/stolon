@@ -54,45 +54,21 @@ func newPGCommand(name pgBinary, conn ConnSettings, args ...string) *exec.Cmd {
 	return exec.Command(string(name), connArgs...)
 }
 
-func backupToS3(conn ConnSettings, s3Cred store.S3Credentials, dbName string, dest string) error {
-	tempDir, err := ioutil.TempDir("", "stolonctl")
-	if err != nil {
-		return trace.Wrap(err)
-	}
-	defer os.RemoveAll(tempDir)
-
-	result := path.Join(tempDir, generateBackupName(dbName))
-	err = backupToFile(conn, dbName, result)
-	if err != nil {
-		return trace.Wrap(err)
-	}
-	err = store.UploadToS3(s3Cred, result, dest)
-	if err != nil {
-		return trace.Wrap(err)
-	}
-
-	return nil
-}
-
-func backupToFile(conn ConnSettings, dbName, dest string) error {
-	log.Infof("Backup database %s to %s", dbName, dest)
+func backupToFile(conn ConnSettings, name, dest string) error {
+	log.Infof("Backup database %s to %s", name, dest)
 
 	cmd := newPGCommand(
 		PgDumpBin, conn,
 		"--compress", "6",
 		"--format", "custom",
 		"--file", dest,
-		dbName)
+		name)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return trace.Wrap(err, fmt.Sprintf("cmd output: %s", string(out)))
 	}
 
 	return nil
-}
-
-func generateBackupName(dbName string) string {
-	return fmt.Sprintf(`%v_%v.sql.gz`, dbName, time.Now().Unix())
 }
 
 func restoreFromS3(conn ConnSettings, s3Cred store.S3Credentials, src string) error {
@@ -126,18 +102,37 @@ func restoreFromFile(conn ConnSettings, src string) error {
 	return nil
 }
 
-func Backup(conn ConnSettings, s3Cred store.S3Credentials, dbName string, dest string) error {
-	if strings.HasPrefix(dest, "s3://") {
-		if err := backupToS3(conn, s3Cred, dbName, dest); err != nil {
-			return trace.Wrap(err)
+func Backup(conn ConnSettings, s3Cred store.S3Credentials, dbName, folder string) (string, error) {
+	file := fmt.Sprintf(`%v_%v.sql.gz`, dbName, time.Now().Unix())
+
+	// Local backup
+	if !strings.HasPrefix(folder, "s3://") {
+		dest := path.Join(folder, file)
+		if err := backupToFile(conn, dbName, dest); err != nil {
+			return "", trace.Wrap(err)
 		}
+
+		return dest, nil
 	}
 
-	if err := backupToFile(conn, dbName, path.Join(dest, generateBackupName(dbName))); err != nil {
-		return trace.Wrap(err)
+	// Local backup to temp dir and upload to S3
+	tempDir, err := ioutil.TempDir("", "stolon")
+	if err != nil {
+		return "", trace.Wrap(err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	tempFile := path.Join(tempDir, file)
+	if err = backupToFile(conn, dbName, tempFile); err != nil {
+		return "", trace.Wrap(err)
 	}
 
-	return nil
+	result, err := store.UploadToS3(s3Cred, tempFile, folder)
+	if err != nil {
+		return "", trace.Wrap(err)
+	}
+
+	return result, nil
 }
 
 func Restore(conn ConnSettings, s3Cred store.S3Credentials, src string) error {
