@@ -1,7 +1,7 @@
 NOROOT := -u $$(id -u):$$(id -g)
 SRCDIR := /go/src/github.com/gravitational/stolon
 DOCKERFLAGS := --rm=true $(NOROOT) -v $(PWD):$(SRCDIR) -w $(SRCDIR) -e GO15VENDOREXPERIMENT=1
-BUILDIMAGE := golang:1.5.4
+BUILDIMAGE := golang:1.7.1
 BINS := bin
 PG_BINS_PATH ?= /usr/lib/postgresql/9.5/bin
 
