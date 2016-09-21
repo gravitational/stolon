@@ -15,14 +15,13 @@
 package database
 
 import (
-	"github.com/gravitational/trace"
-
 	"github.com/gravitational/stolon/pkg/postgresql"
 	"github.com/gravitational/stolon/pkg/store"
+	"github.com/gravitational/trace"
 )
 
 func Backup(conn postgresql.ConnSettings, s3Cred store.S3Credentials, dbName string, dest string) error {
-	if err := postgresql.Backup(conn, s3Cred, dbName, dest); err != nil {
+	if _, err := postgresql.Backup(conn, s3Cred, dbName, dest); err != nil {
 		return trace.Wrap(err)
 	}
 	return nil

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 
 	log "github.com/Sirupsen/logrus"
@@ -19,54 +18,49 @@ type Args struct {
 	Name, Path string
 }
 
-type Reply struct {
-	Message string
-}
+type Reply string
 
 func (o *DatabaseOperation) Create(r *http.Request, args *Args, reply *Reply) error {
-	log.Infof("Execute: create database '%s'", args.Name)
+	log.Infof("RPC: create database '%s'", args.Name)
 	if err := postgresql.Create(o.dbConn, args.Name); err != nil {
 		log.Error(err)
 		return trace.Wrap(err)
 	}
 
-	reply.Message = fmt.Sprintf("Database '%s' was successfully created", args.Name)
-	log.Info(reply.Message)
+	*reply = Reply("Ok")
 	return nil
 }
 
 func (o *DatabaseOperation) Delete(r *http.Request, args *Args, reply *Reply) error {
-	log.Infof("Execute: delete database '%s'", args.Name)
+	log.Infof("RPC: delete database '%s'", args.Name)
 	if err := postgresql.Delete(o.dbConn, args.Name); err != nil {
 		log.Error(err)
 		return trace.Wrap(err)
 	}
 
-	reply.Message = fmt.Sprintf("Database '%s' was successfully deleted", args.Name)
-	log.Info(reply.Message)
+	*reply = Reply(args.Name)
 	return nil
 }
 
 func (o *DatabaseOperation) Backup(r *http.Request, args *Args, reply *Reply) error {
-	log.Infof("Execute: backup database '%s' to '%s'", args.Name, args.Path)
-	if err := postgresql.Backup(o.dbConn, o.s3Cred, args.Name, args.Path); err != nil {
+	log.Infof("RPC: backup database '%s' to '%s'", args.Name, args.Path)
+	result, err := postgresql.Backup(o.dbConn, o.s3Cred, args.Name, args.Path)
+	if err != nil {
 		log.Error(err)
 		return trace.Wrap(err)
 	}
 
-	reply.Message = fmt.Sprintf("Database '%s' was successfully backuped to '%s'", args.Name, args.Path)
-	log.Info(reply.Message)
+	*reply = Reply(result)
 	return nil
 }
 
 func (o *DatabaseOperation) Restore(r *http.Request, args *Args, reply *Reply) error {
-	log.Infof("Execute: restore database from '%s'", args.Path)
+	log.Infof("RPC: restore database from '%s'", args.Path)
 	if err := postgresql.Restore(o.dbConn, o.s3Cred, args.Path); err != nil {
 		log.Error(err)
 		return trace.Wrap(err)
 	}
 
-	reply.Message = fmt.Sprintf("Database was successfully restored from '%s'", args.Path)
-	log.Info(reply.Message)
+	*reply = Reply(args.Path)
 	return nil
 }
