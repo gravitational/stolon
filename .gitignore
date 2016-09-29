@@ -16,3 +16,6 @@ bin/
 /release/
 
 data
+
+# Goreman defaults
+.env
