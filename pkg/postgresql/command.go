@@ -103,7 +103,7 @@ func restoreFromFile(conn ConnSettings, src string) error {
 }
 
 func Backup(conn ConnSettings, s3Cred store.S3Credentials, dbName, folder string) (string, error) {
-	file := fmt.Sprintf(`%v_%v.sql.gz`, dbName, time.Now().Unix())
+	file := fmt.Sprintf(`%v_%v.sql.gz`, dbName, time.Now().Format("2006-01-02T15:04:05"))
 
 	// Local backup
 	if !strings.HasPrefix(folder, "s3://") {
