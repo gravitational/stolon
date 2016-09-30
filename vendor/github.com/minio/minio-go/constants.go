@@ -18,9 +18,9 @@ package minio
 
 /// Multipart upload defaults.
 
-// miniPartSize - minimum part size 5MiB per object after which
+// miniPartSize - minimum part size 64MiB per object after which
 // putObject behaves internally as multipart.
-const minPartSize = 1024 * 1024 * 5
+const minPartSize = 1024 * 1024 * 64
 
 // maxPartsCount - maximum number of parts for a single multipart session.
 const maxPartsCount = 10000
@@ -40,3 +40,7 @@ const maxMultipartPutObjectSize = 1024 * 1024 * 1024 * 1024 * 5
 // optimalReadBufferSize - optimal buffer 5MiB used for reading
 // through Read operation.
 const optimalReadBufferSize = 1024 * 1024 * 5
+
+// unsignedPayload - value to be set to X-Amz-Content-Sha256 header when
+// we don't want to sign the request payload
+const unsignedPayload = "UNSIGNED-PAYLOAD"
