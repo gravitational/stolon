@@ -76,6 +76,18 @@ func UploadToS3(cred S3Credentials, src, dest string) (string, error) {
 		return "", trace.Wrap(err)
 	}
 
+	found, err := client.BucketExists(loc.Bucket)
+	if err != nil {
+		return "", trace.Wrap(err)
+	}
+
+	if !found {
+		err = client.MakeBucket(loc.Bucket, "G1")
+		if err != nil {
+			return "", trace.Wrap(err)
+		}
+	}
+
 	_, filename := path.Split(src)
 	dest = path.Join(loc.Path, filename)
 	uploadedSize, err := client.FPutObject(loc.Bucket, dest, src, "application/gzip")
