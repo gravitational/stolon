@@ -169,8 +169,8 @@
 		},
 		{
 			"ImportPath": "github.com/minio/minio-go",
-			"Comment": "1.0.1-70-g126a1b7",
-			"Rev": "126a1b7f4111dd51ec02d73568d8e864239679f2"
+			"Comment": "1.0.1-130-g1167dcb",
+			"Rev": "1167dcbe0150ed14e094f3b1f0b907c5811aa734"
 		},
 		{
 			"ImportPath": "github.com/satori/go.uuid",
@@ -217,6 +217,16 @@
 			"ImportPath": "k8s.io/kubernetes/third_party/forked/json",
 			"Comment": "v1.2.0-alpha.2-603-g7b8bf75",
 			"Rev": "7b8bf758f3b67634fd001eb7cf6b5a9b481528c1"
+		},
+		{
+			"ImportPath": "github.com/minio/minio-go/pkg/policy",
+			"Comment": "1.0.1-130-g1167dcb",
+			"Rev": "1167dcbe0150ed14e094f3b1f0b907c5811aa734"
+		},
+		{
+			"ImportPath": "github.com/minio/minio-go/pkg/set",
+			"Comment": "1.0.1-130-g1167dcb",
+			"Rev": "1167dcbe0150ed14e094f3b1f0b907c5811aa734"
 		}
 	]
 }

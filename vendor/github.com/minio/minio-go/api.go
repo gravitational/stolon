@@ -73,7 +73,7 @@ type Client struct {
 // Global constants.
 const (
 	libraryName    = "minio-go"
-	libraryVersion = "1.0.1"
+	libraryVersion = "2.0.1"
 )
 
 // User Agent should always following the below style.
@@ -589,7 +589,7 @@ func (c Client) newRequest(method string, metadata requestMetadata) (req *http.R
 		// set sha256 sum for signature calculation only with
 		// signature version '4'.
 		if c.signature.isV4() {
-			shaHeader := "UNSIGNED-PAYLOAD"
+			shaHeader := unsignedPayload
 			if !c.secure {
 				if metadata.contentSHA256Bytes == nil {
 					shaHeader = hex.EncodeToString(sum256([]byte{}))

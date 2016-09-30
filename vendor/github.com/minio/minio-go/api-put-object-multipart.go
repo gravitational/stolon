@@ -22,6 +22,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/xml"
+	"fmt"
 	"hash"
 	"io"
 	"io/ioutil"
@@ -93,7 +94,8 @@ func (c Client) putObjectMultipartStream(bucketName, objectName string, reader i
 	}
 
 	// If This session is a continuation of a previous session fetch all
-	// previously uploaded parts info.
+	// previously uploaded parts info and as a special case only fetch partsInfo
+	// for only known upload size.
 	if !isNew {
 		// Fetch previously uploaded parts and maximum part size.
 		partsInfo, err = c.listObjectParts(bucketName, objectName, uploadID)
@@ -115,7 +117,6 @@ func (c Client) putObjectMultipartStream(bucketName, objectName string, reader i
 	tmpBuffer := new(bytes.Buffer)
 
 	for partNumber <= totalPartsCount {
-
 		// Choose hash algorithms to be calculated by hashCopyN, avoid sha256
 		// with non-v4 signature request or HTTPS connection
 		hashSums := make(map[string][]byte)
@@ -169,14 +170,14 @@ func (c Client) putObjectMultipartStream(bucketName, objectName string, reader i
 		// Save successfully uploaded size.
 		totalUploadedSize += prtSize
 
+		// Increment part number.
+		partNumber++
+
 		// For unknown size, Read EOF we break away.
 		// We do not have to upload till totalPartsCount.
 		if size < 0 && rErr == io.EOF {
 			break
 		}
-
-		// Increment part number.
-		partNumber++
 	}
 
 	// Verify if we uploaded all the data.
@@ -186,19 +187,17 @@ func (c Client) putObjectMultipartStream(bucketName, objectName string, reader i
 		}
 	}
 
-	// Loop over uploaded parts to save them in a Parts array before completing the multipart request.
-	for _, part := range partsInfo {
-		var complPart completePart
-		complPart.ETag = part.ETag
-		complPart.PartNumber = part.PartNumber
-		complMultipartUpload.Parts = append(complMultipartUpload.Parts, complPart)
-	}
-
-	if size > 0 {
-		// Verify if totalPartsCount is not equal to total list of parts.
-		if totalPartsCount != len(complMultipartUpload.Parts) {
-			return totalUploadedSize, ErrInvalidParts(partNumber, len(complMultipartUpload.Parts))
+	// Loop over total uploaded parts to save them in
+	// Parts array before completing the multipart request.
+	for i := 1; i < partNumber; i++ {
+		part, ok := partsInfo[i]
+		if !ok {
+			return 0, ErrInvalidArgument(fmt.Sprintf("Missing part number %d", i))
 		}
+		complMultipartUpload.Parts = append(complMultipartUpload.Parts, completePart{
+			ETag:       part.ETag,
+			PartNumber: part.PartNumber,
+		})
 	}
 
 	// Sort all completed parts.
