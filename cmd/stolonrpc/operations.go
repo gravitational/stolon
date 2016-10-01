@@ -11,11 +11,20 @@ import (
 
 type DatabaseOperation struct {
 	dbConn postgresql.ConnSettings
-	s3Cred store.S3Credentials
 }
 
 type Args struct {
-	Name, Path string
+	Name            string
+	Path            string
+	AccessKeyID     string
+	SecretAccessKey string
+}
+
+func (a *Args) S3Credentials() store.S3Credentials {
+	return store.S3Credentials{
+		AccessKeyID:     a.AccessKeyID,
+		SecretAccessKey: a.SecretAccessKey,
+	}
 }
 
 type Reply string
@@ -44,7 +53,7 @@ func (o *DatabaseOperation) Delete(r *http.Request, args *Args, reply *Reply) er
 
 func (o *DatabaseOperation) Backup(r *http.Request, args *Args, reply *Reply) error {
 	log.Infof("RPC: backup database '%s' to '%s'", args.Name, args.Path)
-	result, err := postgresql.Backup(o.dbConn, o.s3Cred, args.Name, args.Path)
+	result, err := postgresql.Backup(o.dbConn, args.S3Credentials(), args.Name, args.Path)
 	if err != nil {
 		log.Error(err)
 		return trace.Wrap(err)
@@ -56,7 +65,7 @@ func (o *DatabaseOperation) Backup(r *http.Request, args *Args, reply *Reply) er
 
 func (o *DatabaseOperation) Restore(r *http.Request, args *Args, reply *Reply) error {
 	log.Infof("RPC: restore database from '%s'", args.Path)
-	if err := postgresql.Restore(o.dbConn, o.s3Cred, args.Path); err != nil {
+	if err := postgresql.Restore(o.dbConn, args.S3Credentials(), args.Path); err != nil {
 		log.Error(err)
 		return trace.Wrap(err)
 	}
