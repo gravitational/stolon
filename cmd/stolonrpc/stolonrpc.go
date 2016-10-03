@@ -12,7 +12,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gravitational/stolon/pkg/postgresql"
-	"github.com/gravitational/stolon/pkg/store"
 	"github.com/gravitational/trace"
 	"github.com/kelseyhightower/envconfig"
 
@@ -26,13 +25,11 @@ var (
 )
 
 type Config struct {
-	LogLevel          string `envconfig:"STOLONRPC_LOG_LEVEL"`
-	Port              string `envconfig:"STOLONRPC_PORT"`
-	DatabaseHost      string `envconfig:"STOLONRPC_DB_HOST"`
-	DatabasePort      string `envconfig:"STOLONRPC_DB_PORT"`
-	DatabaseUsername  string `envconfig:"STOLONRPC_DB_USERNAME"`
-	S3AccessKeyID     string `envconfig:"STOLONRPC_S3_ACCESS_KEY_ID"`
-	S3SecretAccessKey string `envconfig:"STOLONRPC_S3_SECRET_ACCESS_KEY"`
+	LogLevel         string `envconfig:"STOLONRPC_LOG_LEVEL"`
+	Port             string `envconfig:"STOLONRPC_PORT"`
+	DatabaseHost     string `envconfig:"STOLONRPC_DB_HOST"`
+	DatabasePort     string `envconfig:"STOLONRPC_DB_PORT"`
+	DatabaseUsername string `envconfig:"STOLONRPC_DB_USERNAME"`
 }
 
 func GetConfig() (*Config, error) {
@@ -80,13 +77,8 @@ func main() {
 		Port:     c.DatabasePort,
 		Username: c.DatabaseUsername,
 	}
-	s3Cred := store.S3Credentials{
-		AccessKeyID:     c.S3AccessKeyID,
-		SecretAccessKey: c.S3SecretAccessKey,
-	}
 	op := new(DatabaseOperation)
 	op.dbConn = dbConn
-	op.s3Cred = s3Cred
 
 	s.RegisterService(op, "DatabaseOperation")
 
