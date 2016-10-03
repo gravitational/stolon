@@ -71,7 +71,7 @@ func UploadToS3(cred S3Credentials, src, dest string) (string, error) {
 		return "", trace.Wrap(err)
 	}
 
-	client, err := minio.New(loc.Host, cred.AccessKeyID, cred.SecretAccessKey, true)
+	client, err := minio.NewV2(loc.Host, cred.AccessKeyID, cred.SecretAccessKey, true)
 	if err != nil {
 		return "", trace.Wrap(err)
 	}
@@ -105,7 +105,7 @@ func DownloadFromS3(cred S3Credentials, src string, dest string) (string, error)
 		return "", trace.Wrap(err)
 	}
 
-	client, err := minio.New(loc.Host, cred.AccessKeyID, cred.SecretAccessKey, true)
+	client, err := minio.NewV2(loc.Host, cred.AccessKeyID, cred.SecretAccessKey, true)
 	if err != nil {
 		return "", trace.Wrap(err)
 	}
