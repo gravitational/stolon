@@ -118,6 +118,7 @@ var defaultPGParameters = pg.Parameters{
 	"wal_level":               "hot_standby",
 	"wal_keep_segments":       "8",
 	"hot_standby":             "on",
+	"max_connections":         "500",
 }
 
 func readPasswordFromFile(filepath string) (string, error) {
