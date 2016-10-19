@@ -82,6 +82,7 @@ type config struct {
 	pgSSLCertFile           string
 	pgSSLKeyFile            string
 	pgSSLCAFile             string
+	pgSSLCiphers            string
 	pgInitialSUUsername     string
 	pgInitialSUPasswordFile string
 }
@@ -118,6 +119,7 @@ func init() {
 	cmdKeeper.PersistentFlags().StringVar(&cfg.pgSSLCertFile, "pg-ssl-cert-file", "", "postgres SSL certificate file")
 	cmdKeeper.PersistentFlags().StringVar(&cfg.pgSSLKeyFile, "pg-ssl-key-file", "", "postgres SSL private key")
 	cmdKeeper.PersistentFlags().StringVar(&cfg.pgSSLCAFile, "pg-ssl-ca-file", "", "postgres SSL certificate authority file")
+	cmdKeeper.PersistentFlags().StringVar(&cfg.pgSSLCAFile, "pg-ssl-ciphers", "", "postgres SSL allowed cipers list")
 	cmdKeeper.PersistentFlags().BoolVar(&cfg.debug, "debug", false, "enable debug logging")
 }
 
@@ -249,6 +251,10 @@ func (p *PostgresKeeper) createPGParameters(followersIDs []string) pg.Parameters
 		pgParameters["ssl_ca_file"] = p.pgSSLCAFile
 	}
 
+	if p.pgSSLCiphers != "" {
+		pgParameters["ssl_ciphers"] = p.pgSSLCiphers
+	}
+
 	return pgParameters
 }
 
@@ -274,6 +280,7 @@ type PostgresKeeper struct {
 	pgSSLCertFile       string
 	pgSSLKeyFile        string
 	pgSSLCAFile         string
+	pgSSLCiphers        string
 	pgInitialSUUsername string
 
 	e    *store.StoreManager
@@ -331,6 +338,7 @@ func NewPostgresKeeper(id string, cfg *config, stop chan bool, end chan error) (
 		pgSSLCertFile:    cfg.pgSSLCertFile,
 		pgSSLKeyFile:     cfg.pgSSLKeyFile,
 		pgSSLCAFile:      cfg.pgSSLCAFile,
+		pgSSLCiphers:     cfg.pgSSLCiphers,
 
 		e:    e,
 		stop: stop,
