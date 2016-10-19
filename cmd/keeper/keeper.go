@@ -119,7 +119,7 @@ func init() {
 	cmdKeeper.PersistentFlags().StringVar(&cfg.pgSSLCertFile, "pg-ssl-cert-file", "", "postgres SSL certificate file")
 	cmdKeeper.PersistentFlags().StringVar(&cfg.pgSSLKeyFile, "pg-ssl-key-file", "", "postgres SSL private key")
 	cmdKeeper.PersistentFlags().StringVar(&cfg.pgSSLCAFile, "pg-ssl-ca-file", "", "postgres SSL certificate authority file")
-	cmdKeeper.PersistentFlags().StringVar(&cfg.pgSSLCAFile, "pg-ssl-ciphers", "", "postgres SSL allowed cipers list")
+	cmdKeeper.PersistentFlags().StringVar(&cfg.pgSSLCiphers, "pg-ssl-ciphers", "", "postgres SSL allowed cipers list")
 	cmdKeeper.PersistentFlags().BoolVar(&cfg.debug, "debug", false, "enable debug logging")
 }
 
