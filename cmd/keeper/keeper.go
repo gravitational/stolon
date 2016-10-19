@@ -179,13 +179,18 @@ func (p *PostgresKeeper) getReplConnParams(keeperState *cluster.KeeperState) pg.
 }
 
 func (p *PostgresKeeper) getLocalConnParams() pg.ConnParams {
+	sslMode := "disable"
+	if p.pgSSLReplication {
+		// for a local connection with SSL, skip verification of names
+		sslMode = "require"
+	}
 	return pg.ConnParams{
 		"user": p.pgSUUsername,
 		// Do not set password since we assume that pg_hba.conf trusts local users
-		"host":    p.pgListenAddress,
+		"host":    "localhost",
 		"port":    p.pgPort,
 		"dbname":  "postgres",
-		"sslmode": p.getSslmode(),
+		"sslmode": sslMode,
 	}
 }
 
