@@ -182,7 +182,7 @@ func (p *PostgresKeeper) getLocalConnParams() pg.ConnParams {
 	return pg.ConnParams{
 		"user": p.pgSUUsername,
 		// Do not set password since we assume that pg_hba.conf trusts local users
-		"host":    "localhost",
+		"host":    p.pgListenAddress,
 		"port":    p.pgPort,
 		"dbname":  "postgres",
 		"sslmode": p.getSslmode(),
