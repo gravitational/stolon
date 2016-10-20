@@ -151,7 +151,7 @@ func readPasswordFromFile(filepath string) (string, error) {
 
 func (p *PostgresKeeper) getSslmode() string {
 	if p.pgSSLReplication {
-		return "verify-full"
+		return "require"
 	}
 	return "disable"
 }
@@ -181,18 +181,13 @@ func (p *PostgresKeeper) getReplConnParams(keeperState *cluster.KeeperState) pg.
 }
 
 func (p *PostgresKeeper) getLocalConnParams() pg.ConnParams {
-	sslMode := "disable"
-	if p.pgSSLReplication {
-		// for a local connection with SSL, skip verification of names
-		sslMode = "require"
-	}
 	return pg.ConnParams{
 		"user": p.pgSUUsername,
 		// Do not set password since we assume that pg_hba.conf trusts local users
 		"host":    "localhost",
 		"port":    p.pgPort,
 		"dbname":  "postgres",
-		"sslmode": sslMode,
+		"sslmode": p.getSslmode(),
 	}
 }
 
