@@ -78,6 +78,11 @@ type config struct {
 	pgSUUsername            string
 	pgSUPassword            string
 	pgSUPasswordFile        string
+	pgSSLReplication        bool
+	pgSSLCertFile           string
+	pgSSLKeyFile            string
+	pgSSLCAFile             string
+	pgSSLCiphers            string
 	pgInitialSUUsername     string
 	pgInitialSUPasswordFile string
 }
@@ -110,6 +115,11 @@ func init() {
 	cmdKeeper.PersistentFlags().StringVar(&cfg.pgSUUsername, "pg-su-username", user, "postgres superuser user name. Used for keeper managed instance access and pg_rewind based synchronization. It'll be created on db initialization. Defaults to the name of the effective user running stolon-keeper. Must be the same for all keepers.")
 	cmdKeeper.PersistentFlags().StringVar(&cfg.pgSUPassword, "pg-su-password", "", "postgres superuser password. Needed for pg_rewind based synchronization. If provided it'll be configured on db initialization. Only one of --pg-su-password or --pg-su-passwordfile is required. Must be the same for all keepers.")
 	cmdKeeper.PersistentFlags().StringVar(&cfg.pgSUPasswordFile, "pg-su-passwordfile", "", "postgres superuser password file. Requires --pg-su-username. Must be the same for all keepers)")
+	cmdKeeper.PersistentFlags().BoolVar(&cfg.pgSSLReplication, "pg-ssl-replication", false, "enable SSL replication")
+	cmdKeeper.PersistentFlags().StringVar(&cfg.pgSSLCertFile, "pg-ssl-cert-file", "", "postgres SSL certificate file")
+	cmdKeeper.PersistentFlags().StringVar(&cfg.pgSSLKeyFile, "pg-ssl-key-file", "", "postgres SSL private key")
+	cmdKeeper.PersistentFlags().StringVar(&cfg.pgSSLCAFile, "pg-ssl-ca-file", "", "postgres SSL certificate authority file")
+	cmdKeeper.PersistentFlags().StringVar(&cfg.pgSSLCiphers, "pg-ssl-ciphers", "", "postgres SSL allowed cipers list")
 	cmdKeeper.PersistentFlags().BoolVar(&cfg.debug, "debug", false, "enable debug logging")
 }
 
@@ -139,6 +149,13 @@ func readPasswordFromFile(filepath string) (string, error) {
 	return strings.TrimSpace(string(pwBytes)), nil
 }
 
+func (p *PostgresKeeper) getSslmode() string {
+	if p.pgSSLReplication {
+		return "require"
+	}
+	return "disable"
+}
+
 func (p *PostgresKeeper) getSUConnParams(keeperState *cluster.KeeperState) pg.ConnParams {
 	cp := pg.ConnParams{
 		"user":             p.pgSUUsername,
@@ -147,7 +164,7 @@ func (p *PostgresKeeper) getSUConnParams(keeperState *cluster.KeeperState) pg.Co
 		"port":             keeperState.PGPort,
 		"application_name": p.id,
 		"dbname":           "postgres",
-		"sslmode":          "disable",
+		"sslmode":          p.getSslmode(),
 	}
 	return cp
 }
@@ -159,7 +176,7 @@ func (p *PostgresKeeper) getReplConnParams(keeperState *cluster.KeeperState) pg.
 		"host":             keeperState.PGListenAddress,
 		"port":             keeperState.PGPort,
 		"application_name": p.id,
-		"sslmode":          "disable",
+		"sslmode":          p.getSslmode(),
 	}
 }
 
@@ -170,7 +187,7 @@ func (p *PostgresKeeper) getLocalConnParams() pg.ConnParams {
 		"host":    "localhost",
 		"port":    p.pgPort,
 		"dbname":  "postgres",
-		"sslmode": "disable",
+		"sslmode": p.getSslmode(),
 	}
 }
 
@@ -180,7 +197,7 @@ func (p *PostgresKeeper) getOurReplConnParams() pg.ConnParams {
 		"password": p.pgReplPassword,
 		"host":     p.pgListenAddress,
 		"port":     p.pgPort,
-		"sslmode":  "disable",
+		"sslmode":  p.getSslmode(),
 	}
 }
 
@@ -211,6 +228,28 @@ func (p *PostgresKeeper) createPGParameters(followersIDs []string) pg.Parameters
 		pgParameters["synchronous_standby_names"] = ""
 	}
 
+	if p.pgSSLReplication {
+		pgParameters["ssl"] = "on"
+	} else {
+		pgParameters["ssl"] = "off"
+	}
+
+	if p.pgSSLCertFile != "" {
+		pgParameters["ssl_cert_file"] = p.pgSSLCertFile
+	}
+
+	if p.pgSSLKeyFile != "" {
+		pgParameters["ssl_key_file"] = p.pgSSLKeyFile
+	}
+
+	if p.pgSSLCertFile != "" {
+		pgParameters["ssl_ca_file"] = p.pgSSLCAFile
+	}
+
+	if p.pgSSLCiphers != "" {
+		pgParameters["ssl_ciphers"] = p.pgSSLCiphers
+	}
+
 	return pgParameters
 }
 
@@ -232,6 +271,11 @@ type PostgresKeeper struct {
 	pgReplPassword      string
 	pgSUUsername        string
 	pgSUPassword        string
+	pgSSLReplication    bool
+	pgSSLCertFile       string
+	pgSSLKeyFile        string
+	pgSSLCAFile         string
+	pgSSLCiphers        string
 	pgInitialSUUsername string
 
 	e    *store.StoreManager
@@ -284,6 +328,12 @@ func NewPostgresKeeper(id string, cfg *config, stop chan bool, end chan error) (
 		pgSUUsername:        cfg.pgSUUsername,
 		pgSUPassword:        cfg.pgSUPassword,
 		pgInitialSUUsername: cfg.pgInitialSUUsername,
+
+		pgSSLReplication: cfg.pgSSLReplication,
+		pgSSLCertFile:    cfg.pgSSLCertFile,
+		pgSSLKeyFile:     cfg.pgSSLKeyFile,
+		pgSSLCAFile:      cfg.pgSSLCAFile,
+		pgSSLCiphers:     cfg.pgSSLCiphers,
 
 		e:    e,
 		stop: stop,
@@ -707,7 +757,7 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 			log.Infof("already master")
 
 			var replSlots []string
-			replSlots, err = pgm.GetReplicatinSlots()
+			replSlots, err = pgm.GetReplicationSlots()
 			if err != nil {
 				log.Errorf("err: %v", err)
 				return
