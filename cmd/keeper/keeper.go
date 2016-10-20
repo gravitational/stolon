@@ -757,7 +757,7 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 			log.Infof("already master")
 
 			var replSlots []string
-			replSlots, err = pgm.GetReplicatinSlots()
+			replSlots, err = pgm.GetReplicationSlots()
 			if err != nil {
 				log.Errorf("err: %v", err)
 				return

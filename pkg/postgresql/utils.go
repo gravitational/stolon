@@ -122,7 +122,7 @@ func AlterRole(ctx context.Context, connString string, roles []string, username,
 	return err
 }
 
-func GetReplicatinSlots(ctx context.Context, connString string) ([]string, error) {
+func GetReplicationSlots(ctx context.Context, connString string) ([]string, error) {
 	db, err := sql.Open("postgres", connString)
 	if err != nil {
 		return nil, err

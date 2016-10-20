@@ -262,10 +262,10 @@ func (p *Manager) SetupRoles() error {
 	return nil
 }
 
-func (p *Manager) GetReplicatinSlots() ([]string, error) {
+func (p *Manager) GetReplicationSlots() ([]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), p.requestTimeout)
 	defer cancel()
-	return GetReplicatinSlots(ctx, p.localConnString)
+	return GetReplicationSlots(ctx, p.localConnString)
 }
 
 func (p *Manager) CreateReplicationSlot(name string) error {
