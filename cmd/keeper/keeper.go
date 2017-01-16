@@ -126,7 +126,7 @@ func init() {
 var defaultPGParameters = pg.Parameters{
 	"unix_socket_directories": "/tmp",
 	"wal_level":               "hot_standby",
-	"wal_keep_segments":       "8",
+	"wal_keep_segments":       "128",
 	"hot_standby":             "on",
 	"max_connections":         "500",
 }
