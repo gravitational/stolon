@@ -157,6 +157,8 @@ func (p *Manager) Start() error {
 	}
 	name := filepath.Join(p.pgBinPath, "pg_ctl")
 	cmd := exec.Command(name, "start", "-w", "-D", p.dataDir)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	// TODO(sgotti) attaching a pipe to sdtout/stderr makes the postgres
 	// process executed by pg_ctl inheriting it's file descriptors. So
 	// cmd.Wait() will block and waiting on them to be closed (will happend
