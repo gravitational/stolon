@@ -417,9 +417,10 @@ func (p *PostgresKeeper) updatePGState(pctx context.Context) {
 	defer p.pgStateMutex.Unlock()
 	pgState, err := p.GetPGState(pctx)
 	if err != nil {
-		log.Error(err)
+		log.Errorf("error getting pgstate: %v", err)
 		return
 	}
+	log.Debugf("keeperpgState: %v", pgState)
 	p.lastPGState = pgState
 }
 
