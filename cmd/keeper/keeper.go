@@ -444,7 +444,7 @@ func (p *PostgresKeeper) GetPGState(pctx context.Context) (*cluster.PostgresStat
 		}
 
 		ctx, cancel = context.WithTimeout(pctx, p.clusterConfig.RequestTimeout)
-		replicationLag, err := pg.GetReplicationLag(ctx, p.getOurReplConnParams())
+		replicationLag, err := pg.GetReplicationLag(ctx, p.getLocalConnParams())
 		defer cancel()
 		if err != nil {
 			return nil, fmt.Errorf("error getting replication lag: %v", err)

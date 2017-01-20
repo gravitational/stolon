@@ -278,10 +278,8 @@ func GetPGState(ctx context.Context, replConnParams ConnParams) (*cluster.Postgr
 	return nil, fmt.Errorf("query returned 0 rows")
 }
 
-func GetReplicationLag(ctx context.Context, replConnParams ConnParams) (uint, error) {
-	// Add "replication=1" connection option
-	replConnParams["replication"] = "1"
-	db, err := sql.Open("postgres", replConnParams.ConnString())
+func GetReplicationLag(ctx context.Context, connString ConnParams) (uint, error) {
+	db, err := sql.Open("postgres", connString.ConnString())
 	if err != nil {
 		return 0, err
 	}
