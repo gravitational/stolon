@@ -136,6 +136,12 @@ func (p *Manager) Init() error {
 		err = fmt.Errorf("error setting roles: %v", err)
 		goto out
 	}
+
+	log.Info("Creating function for computing replication lag")
+	if err = p.CreateReplicationLagFunction(); err != nil {
+		err = fmt.Errorf("error creating replication lag function: %v", err)
+		goto out
+	}
 	if err = p.Stop(true); err != nil {
 		err = fmt.Errorf("error stopping instance: %v", err)
 		goto out
@@ -262,6 +268,12 @@ func (p *Manager) SetupRoles() error {
 		log.Debugf("replication role %s created", p.replUsername)
 	}
 	return nil
+}
+
+func (p *Manager) CreateReplicationLagFunction() error {
+	ctx, cancel := context.WithTimeout(context.Background(), p.requestTimeout)
+	defer cancel()
+	return ReplicationLagFunction(ctx, p.localConnString)
 }
 
 func (p *Manager) GetReplicationSlots() ([]string, error) {
