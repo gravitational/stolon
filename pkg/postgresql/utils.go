@@ -291,11 +291,13 @@ func GetReplicationLag(ctx context.Context, connString ConnParams) (uint, error)
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var replicationLag uint
+		var replicationLag sql.NullFloat64
 		if err := rows.Scan(&replicationLag); err != nil {
 			return 0, err
 		}
-		return replicationLag, nil
+		if replicationLag.Valid {
+			return uint(replicationLag.Float64), nil
+		}
 	}
 	return 0, nil
 
