@@ -452,6 +452,14 @@ func (p *PostgresKeeper) GetPGState(pctx context.Context) (*cluster.PostgresStat
 		}
 		pgState.ReplicationLag = replicationLag
 
+		ctx, cancel = context.WithTimeout(pctx, p.clusterConfig.RequestTimeout)
+		role, err := pg.GetRole(ctx, p.getLocalConnParams())
+		defer cancel()
+		if err != nil {
+			return nil, fmt.Errorf("error getting replication lag: %v", err)
+		}
+		pgState.Role = role
+
 		pgState.Initialized = true
 
 		// if timeline <= 1 then no timeline history file exists.
@@ -888,6 +896,7 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 			// an old pgState not reflecting the real state
 			var pgState *cluster.PostgresState
 			pgState, err = p.GetPGState(pctx)
+
 			if err != nil {
 				log.Errorf("cannot get current pgstate: %v", err)
 				return

@@ -184,8 +184,8 @@ func DropReplicationSlot(ctx context.Context, connString string, name string) er
 	return err
 }
 
-func GetRole(ctx context.Context, connString string) (common.Role, error) {
-	db, err := sql.Open("postgres", connString)
+func GetRole(ctx context.Context, connParams ConnParams) (common.Role, error) {
+	db, err := sql.Open("postgres", connParams.ConnString())
 	if err != nil {
 		return 0, err
 	}
@@ -278,8 +278,8 @@ func GetPGState(ctx context.Context, replConnParams ConnParams) (*cluster.Postgr
 	return nil, fmt.Errorf("query returned 0 rows")
 }
 
-func GetReplicationLag(ctx context.Context, connString ConnParams) (uint, error) {
-	db, err := sql.Open("postgres", connString.ConnString())
+func GetReplicationLag(ctx context.Context, connParams ConnParams) (uint, error) {
+	db, err := sql.Open("postgres", connParams.ConnString())
 	if err != nil {
 		return 0, err
 	}
