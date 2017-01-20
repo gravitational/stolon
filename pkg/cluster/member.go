@@ -71,6 +71,7 @@ type PostgresState struct {
 	SystemID         string
 	TimelineID       uint64
 	XLogPos          uint64
+	ReplicationLag   uint
 	TimelinesHistory PostgresTimeLinesHistory
 }
 
