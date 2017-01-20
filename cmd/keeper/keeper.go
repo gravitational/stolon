@@ -35,6 +35,7 @@ import (
 	pg "github.com/gravitational/stolon/pkg/postgresql"
 	"github.com/gravitational/stolon/pkg/store"
 	"github.com/gravitational/stolon/pkg/util"
+	"github.com/gravitational/trace"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/coreos/rkt/pkg/lock"
@@ -441,14 +442,14 @@ func (p *PostgresKeeper) GetPGState(pctx context.Context) (*cluster.PostgresStat
 		pgState, err = pg.GetPGState(ctx, p.getOurReplConnParams())
 		defer cancel()
 		if err != nil {
-			return nil, fmt.Errorf("error getting pg state: %v", err)
+			return nil, trace.Wrap(err, "error getting pg state")
 		}
 
 		ctx, cancel = context.WithTimeout(pctx, p.clusterConfig.RequestTimeout)
 		replicationLag, err := pg.GetReplicationLag(ctx, p.getLocalConnParams())
 		defer cancel()
 		if err != nil {
-			return nil, fmt.Errorf("error getting replication lag: %v", err)
+			return nil, trace.Wrap(err, "error getting replication lag")
 		}
 		pgState.ReplicationLag = replicationLag
 
@@ -456,7 +457,7 @@ func (p *PostgresKeeper) GetPGState(pctx context.Context) (*cluster.PostgresStat
 		role, err := pg.GetRole(ctx, p.getLocalConnParams())
 		defer cancel()
 		if err != nil {
-			return nil, fmt.Errorf("error getting replication lag: %v", err)
+			return nil, trace.Wrap(err, "error getting role")
 		}
 		pgState.Role = role
 
@@ -469,7 +470,7 @@ func (p *PostgresKeeper) GetPGState(pctx context.Context) (*cluster.PostgresStat
 			tlsh, err := pg.GetTimelinesHistory(ctx, pgState.TimelineID, p.getOurReplConnParams())
 			defer cancel()
 			if err != nil {
-				return nil, fmt.Errorf("error getting timeline history: %v", err)
+				return nil, trace.Wrap(err, "error getting timeline history")
 			}
 			pgState.TimelinesHistory = tlsh
 		}
