@@ -313,12 +313,6 @@ func (p *Manager) IsInitialized() (bool, error) {
 	return false, nil
 }
 
-func (p *Manager) GetRoleFromDB() (common.Role, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), p.requestTimeout)
-	defer cancel()
-	return GetRole(ctx, p.localConnString)
-}
-
 func (p *Manager) GetRole() (common.Role, error) {
 	curConnParams, err := p.GetPrimaryConninfo()
 	if err != nil {
