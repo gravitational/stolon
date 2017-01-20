@@ -417,6 +417,7 @@ func (p *PostgresKeeper) updatePGState(pctx context.Context) {
 	defer p.pgStateMutex.Unlock()
 	pgState, err := p.GetPGState(pctx)
 	if err != nil {
+		log.Error(err)
 		return
 	}
 	p.lastPGState = pgState
@@ -437,10 +438,19 @@ func (p *PostgresKeeper) GetPGState(pctx context.Context) (*cluster.PostgresStat
 	} else {
 		ctx, cancel := context.WithTimeout(pctx, p.clusterConfig.RequestTimeout)
 		pgState, err = pg.GetPGState(ctx, p.getOurReplConnParams())
-		cancel()
+		defer cancel()
 		if err != nil {
 			return nil, fmt.Errorf("error getting pg state: %v", err)
 		}
+
+		ctx, cancel = context.WithTimeout(pctx, p.clusterConfig.RequestTimeout)
+		replicationLag, err := pg.GetReplicationLag(ctx, p.getOurReplConnParams())
+		defer cancel()
+		if err != nil {
+			return nil, fmt.Errorf("error getting replication lag: %v", err)
+		}
+		pgState.ReplicationLag = replicationLag
+
 		pgState.Initialized = true
 
 		// if timeline <= 1 then no timeline history file exists.
@@ -448,7 +458,7 @@ func (p *PostgresKeeper) GetPGState(pctx context.Context) (*cluster.PostgresStat
 		if pgState.TimelineID > 1 {
 			ctx, cancel = context.WithTimeout(pctx, p.clusterConfig.RequestTimeout)
 			tlsh, err := pg.GetTimelinesHistory(ctx, pgState.TimelineID, p.getOurReplConnParams())
-			cancel()
+			defer cancel()
 			if err != nil {
 				return nil, fmt.Errorf("error getting timeline history: %v", err)
 			}
