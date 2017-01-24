@@ -27,6 +27,8 @@ const (
 	DefaultRequestTimeout          = 10 * time.Second
 	DefaultSleepInterval           = 5 * time.Second
 	DefaultKeeperFailInterval      = 20 * time.Second
+	DefaultMaxReplicationLag       = 600
+	DefaultMaxReplicationLagB      = 262144
 	DefaultMaxStandbysPerSender    = 3
 	DefaultSynchronousReplication  = false
 	DefaultInitWithMultipleKeepers = false
@@ -37,6 +39,8 @@ type NilConfig struct {
 	RequestTimeout          *Duration          `json:"request_timeout,omitempty"`
 	SleepInterval           *Duration          `json:"sleep_interval,omitempty"`
 	KeeperFailInterval      *Duration          `json:"keeper_fail_interval,omitempty"`
+	MaxReplicationLag       *uint              `json:"max_replication_lag,omitempty"`
+	MaxReplicationLagB      *uint              `json:"max_replication_lag_bytes,omitempty"`
 	MaxStandbysPerSender    *uint              `json:"max_standbys_per_sender,omitempty"`
 	SynchronousReplication  *bool              `json:"synchronous_replication,omitempty"`
 	InitWithMultipleKeepers *bool              `json:"init_with_multiple_keepers,omitempty"`
@@ -51,6 +55,10 @@ type Config struct {
 	SleepInterval time.Duration
 	// Interval after the first fail to declare a keeper as not healthy.
 	KeeperFailInterval time.Duration
+	// Maximum possible lag between master and standbys (in seconds)
+	MaxReplicationLag uint
+	// Maximum possible lag between master and standbys (in bytes)
+	MaxReplicationLagB uint
 	// Max number of standbys for every sender. A sender can be a master or
 	// another standby (with cascading replication).
 	MaxStandbysPerSender uint
@@ -116,6 +124,12 @@ func (c *NilConfig) Copy() *NilConfig {
 	if c.KeeperFailInterval != nil {
 		nc.KeeperFailInterval = DurationP(*c.KeeperFailInterval)
 	}
+	if c.MaxReplicationLag != nil {
+		nc.MaxReplicationLag = UintP(*c.MaxReplicationLag)
+	}
+	if c.MaxReplicationLagB != nil {
+		nc.MaxReplicationLagB = UintP(*c.MaxReplicationLagB)
+	}
 	if c.MaxStandbysPerSender != nil {
 		nc.MaxStandbysPerSender = UintP(*c.MaxStandbysPerSender)
 	}
@@ -172,6 +186,13 @@ func (c *NilConfig) Validate() error {
 	if c.KeeperFailInterval != nil && (*c.KeeperFailInterval).Duration < 0 {
 		return fmt.Errorf("keeper_fail_interval must be positive")
 	}
+	if c.MaxReplicationLag != nil && *c.MaxReplicationLag < 0 {
+		return fmt.Errorf("max_replication_lag must be positive")
+	}
+	if c.MaxReplicationLagB != nil && *c.MaxReplicationLagB < 0 {
+		return fmt.Errorf("max_replication_lag_bytes must be positive")
+	}
+
 	if c.MaxStandbysPerSender != nil && *c.MaxStandbysPerSender < 1 {
 		return fmt.Errorf("max_standbys_per_sender must be at least 1")
 	}
@@ -187,6 +208,12 @@ func (c *NilConfig) MergeDefaults() {
 	}
 	if c.KeeperFailInterval == nil {
 		c.KeeperFailInterval = &Duration{DefaultKeeperFailInterval}
+	}
+	if c.MaxReplicationLag == nil {
+		c.MaxReplicationLag = UintP(DefaultMaxReplicationLag)
+	}
+	if c.MaxReplicationLagB == nil {
+		c.MaxReplicationLagB = UintP(DefaultMaxReplicationLagB)
 	}
 	if c.MaxStandbysPerSender == nil {
 		c.MaxStandbysPerSender = UintP(DefaultMaxStandbysPerSender)
@@ -212,6 +239,8 @@ func (c *NilConfig) ToConfig() *Config {
 		RequestTimeout:          (*nc.RequestTimeout).Duration,
 		SleepInterval:           (*nc.SleepInterval).Duration,
 		KeeperFailInterval:      (*nc.KeeperFailInterval).Duration,
+		MaxReplicationLag:       *nc.MaxReplicationLag,
+		MaxReplicationLagB:      *nc.MaxReplicationLagB,
 		MaxStandbysPerSender:    *nc.MaxStandbysPerSender,
 		SynchronousReplication:  *nc.SynchronousReplication,
 		InitWithMultipleKeepers: *nc.InitWithMultipleKeepers,

@@ -122,6 +122,21 @@ func AlterRole(ctx context.Context, connString string, roles []string, username,
 	return err
 }
 
+func ReplicationLagFunction(ctx context.Context, connString string) error {
+	db, err := sql.Open("postgres", connString)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	functionQuery := `CREATE FUNCTION pg_replication_lag() RETURNS double precision AS $$
+                      SELECT CASE WHEN pg_last_xlog_receive_location() = pg_last_xlog_replay_location() THEN 0
+                      ELSE EXTRACT (EPOCH FROM now() - pg_last_xact_replay_timestamp()) END;
+                      $$ LANGUAGE SQL`
+	_, err = Exec(ctx, db, functionQuery)
+	return err
+}
+
 func GetReplicationSlots(ctx context.Context, connString string) ([]string, error) {
 	db, err := sql.Open("postgres", connString)
 	if err != nil {
@@ -169,8 +184,8 @@ func DropReplicationSlot(ctx context.Context, connString string, name string) er
 	return err
 }
 
-func GetRole(ctx context.Context, connString string) (common.Role, error) {
-	db, err := sql.Open("postgres", connString)
+func GetRole(ctx context.Context, connParams ConnParams) (common.Role, error) {
+	db, err := sql.Open("postgres", connParams.ConnString())
 	if err != nil {
 		return 0, err
 	}
@@ -261,6 +276,31 @@ func GetPGState(ctx context.Context, replConnParams ConnParams) (*cluster.Postgr
 		return &pgState, nil
 	}
 	return nil, fmt.Errorf("query returned 0 rows")
+}
+
+func GetReplicationLag(ctx context.Context, connParams ConnParams) (uint, error) {
+	db, err := sql.Open("postgres", connParams.ConnString())
+	if err != nil {
+		return 0, err
+	}
+	defer db.Close()
+
+	rows, err := Query(ctx, db, "select pg_replication_lag()")
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var replicationLag sql.NullFloat64
+		if err := rows.Scan(&replicationLag); err != nil {
+			return 0, err
+		}
+		if replicationLag.Valid {
+			return uint(replicationLag.Float64), nil
+		}
+	}
+	return 0, nil
+
 }
 
 func parseTimeLinesHistory(contents string) (cluster.PostgresTimeLinesHistory, error) {

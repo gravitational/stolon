@@ -35,6 +35,7 @@ import (
 	pg "github.com/gravitational/stolon/pkg/postgresql"
 	"github.com/gravitational/stolon/pkg/store"
 	"github.com/gravitational/stolon/pkg/util"
+	"github.com/gravitational/trace"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/coreos/rkt/pkg/lock"
@@ -417,8 +418,10 @@ func (p *PostgresKeeper) updatePGState(pctx context.Context) {
 	defer p.pgStateMutex.Unlock()
 	pgState, err := p.GetPGState(pctx)
 	if err != nil {
+		log.Errorf("error getting pgstate: %v", err)
 		return
 	}
+	log.Debugf("keeperpgState: %v", pgState)
 	p.lastPGState = pgState
 }
 
@@ -437,10 +440,27 @@ func (p *PostgresKeeper) GetPGState(pctx context.Context) (*cluster.PostgresStat
 	} else {
 		ctx, cancel := context.WithTimeout(pctx, p.clusterConfig.RequestTimeout)
 		pgState, err = pg.GetPGState(ctx, p.getOurReplConnParams())
-		cancel()
+		defer cancel()
 		if err != nil {
-			return nil, fmt.Errorf("error getting pg state: %v", err)
+			return nil, trace.Wrap(err, "error getting pg state")
 		}
+
+		ctx, cancel = context.WithTimeout(pctx, p.clusterConfig.RequestTimeout)
+		replicationLag, err := pg.GetReplicationLag(ctx, p.getLocalConnParams())
+		defer cancel()
+		if err != nil {
+			return nil, trace.Wrap(err, "error getting replication lag")
+		}
+		pgState.ReplicationLag = replicationLag
+
+		ctx, cancel = context.WithTimeout(pctx, p.clusterConfig.RequestTimeout)
+		role, err := pg.GetRole(ctx, p.getLocalConnParams())
+		defer cancel()
+		if err != nil {
+			return nil, trace.Wrap(err, "error getting role")
+		}
+		pgState.Role = role
+
 		pgState.Initialized = true
 
 		// if timeline <= 1 then no timeline history file exists.
@@ -448,9 +468,9 @@ func (p *PostgresKeeper) GetPGState(pctx context.Context) (*cluster.PostgresStat
 		if pgState.TimelineID > 1 {
 			ctx, cancel = context.WithTimeout(pctx, p.clusterConfig.RequestTimeout)
 			tlsh, err := pg.GetTimelinesHistory(ctx, pgState.TimelineID, p.getOurReplConnParams())
-			cancel()
+			defer cancel()
 			if err != nil {
-				return nil, fmt.Errorf("error getting timeline history: %v", err)
+				return nil, trace.Wrap(err, "error getting timeline history")
 			}
 			pgState.TimelinesHistory = tlsh
 		}
@@ -877,6 +897,7 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 			// an old pgState not reflecting the real state
 			var pgState *cluster.PostgresState
 			pgState, err = p.GetPGState(pctx)
+
 			if err != nil {
 				log.Errorf("cannot get current pgstate: %v", err)
 				return

@@ -220,23 +220,31 @@ func (s *Sentinel) GetBestStandby(cv *cluster.ClusterView, keepersState cluster.
 	for id, k := range keepersState {
 		log.Debugf(spew.Sprintf("id: %s, k: %#v", id, k))
 		if id == master {
-			log.Debugf("ignoring node %q since it's the current master", id)
+			log.Warningf("ignoring node %q since it's the current master", id)
 			continue
 		}
 		if !k.Healthy {
-			log.Debugf("ignoring node %q since it's not healthy", id)
+			log.Warningf("ignoring node %q since it's not healthy", id)
 			continue
 		}
 		if k.ClusterViewVersion != cv.Version {
-			log.Debugf("ignoring node since its clusterView version (%d) is different that the actual one (%d)", k.ClusterViewVersion, cv.Version)
+			log.Warningf("ignoring node since its clusterView version (%d) is different that the actual one (%d)", k.ClusterViewVersion, cv.Version)
 			continue
 		}
 		if k.PGState == nil {
-			log.Debugf("ignoring node since its pg state is unknown")
+			log.Warningf("ignoring node since its pg state is unknown")
 			continue
 		}
 		if masterState.PGState.TimelineID != k.PGState.TimelineID {
-			log.Debugf("ignoring node since its pg timeline (%s) is different than master timeline (%d)", keepersState[id].PGState.TimelineID, masterState.PGState.TimelineID)
+			log.Warningf("ignoring node since its pg timeline (%s) is different than master timeline (%d)", keepersState[id].PGState.TimelineID, masterState.PGState.TimelineID)
+			continue
+		}
+		if k.PGState.ReplicationLag >= s.clusterConfig.MaxReplicationLag {
+			log.Warningf("ignoring node since its replication lag (%d) more than maximum possible lag (%d)", keepersState[id].PGState.ReplicationLag, s.clusterConfig.MaxReplicationLag)
+			continue
+		}
+		if (masterState.PGState.XLogPos - k.PGState.XLogPos) >= uint64(s.clusterConfig.MaxReplicationLagB) {
+			log.Warningf("ignoring node since its replication lag in bytes (%d) more than maximum possible lag (%d)", (masterState.PGState.XLogPos - k.PGState.XLogPos), s.clusterConfig.MaxReplicationLagB)
 			continue
 		}
 		if bestID == "" {
