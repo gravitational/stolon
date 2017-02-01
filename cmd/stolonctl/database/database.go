@@ -27,8 +27,8 @@ func Backup(conn postgresql.ConnSettings, s3Cred store.S3Credentials, dbName str
 	return nil
 }
 
-func Restore(conn postgresql.ConnSettings, s3Cred store.S3Credentials, src string) error {
-	if err := postgresql.Restore(conn, s3Cred, src); err != nil {
+func Restore(conn postgresql.ConnSettings, s3Cred store.S3Credentials, dbName, src string) error {
+	if err := postgresql.Restore(conn, s3Cred, dbName, src); err != nil {
 		return trace.Wrap(err)
 	}
 	return nil

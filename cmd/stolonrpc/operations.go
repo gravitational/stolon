@@ -65,7 +65,7 @@ func (o *DatabaseOperation) Backup(r *http.Request, args *Args, reply *Reply) er
 
 func (o *DatabaseOperation) Restore(r *http.Request, args *Args, reply *Reply) error {
 	log.Infof("RPC: restore database from '%s'", args.Path)
-	if err := postgresql.Restore(o.dbConn, args.S3Credentials(), args.Path); err != nil {
+	if err := postgresql.Restore(o.dbConn, args.S3Credentials(), args.Name, args.Path); err != nil {
 		log.Error(err)
 		return trace.Wrap(err)
 	}
