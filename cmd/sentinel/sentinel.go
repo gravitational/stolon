@@ -243,8 +243,15 @@ func (s *Sentinel) GetBestStandby(cv *cluster.ClusterView, keepersState cluster.
 			log.Warningf("ignoring node since its replication lag (%d) more than maximum possible lag (%d)", keepersState[id].PGState.ReplicationLag, s.clusterConfig.MaxReplicationLag)
 			continue
 		}
-		if (masterState.PGState.XLogPos - k.PGState.XLogPos) >= uint64(s.clusterConfig.MaxReplicationLagB) {
-			log.Warningf("ignoring node since its replication lag in bytes (%d) more than maximum possible lag (%d)", (masterState.PGState.XLogPos - k.PGState.XLogPos), s.clusterConfig.MaxReplicationLagB)
+
+		var replicationLagB uint64
+		if masterState.PGState.XLogPos > k.PGState.XLogPos {
+			replicationLagB = masterState.PGState.XLogPos - k.PGState.XLogPos
+		} else {
+			replicationLagB = k.PGState.XLogPos - masterState.PGState.XLogPos
+		}
+		if replicationLagB >= uint64(s.clusterConfig.MaxReplicationLagB) {
+			log.Warningf("ignoring node since its replication lag in bytes (%d) more than maximum possible lag (%d)", replicationLagB, s.clusterConfig.MaxReplicationLagB)
 			continue
 		}
 		if bestID == "" {
