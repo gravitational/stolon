@@ -15,9 +15,7 @@
 package store
 
 import (
-	"io"
 	"net/url"
-	"os"
 	"path"
 	"strings"
 
@@ -112,18 +110,8 @@ func DownloadFromS3(cred S3Credentials, src string, dest string) (string, error)
 		return "", trace.Wrap(err)
 	}
 
-	s3Object, err := client.GetObject(loc.Bucket, loc.Path)
-	if err != nil {
-		return "", trace.Wrap(err)
-	}
-
 	dest = path.Join(dest, path.Base(src))
-	localFile, err := os.Create(dest)
-	if err != nil {
-		return "", trace.Wrap(err)
-	}
-
-	if _, err := io.Copy(localFile, s3Object); err != nil {
+	if err := client.FGetObject(loc.Bucket, loc.Path, dest); err != nil {
 		return "", trace.Wrap(err)
 	}
 
