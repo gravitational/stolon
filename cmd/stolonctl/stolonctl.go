@@ -125,7 +125,8 @@ func (app *application) run() error {
 	cmdDatabaseBackupPath := cmdDatabaseBackup.Arg("path", "send output to the specified folder").Required().String()
 	// restore
 	cmdDatabaseRestore := cmdDatabase.Command("restore", "restore the database")
-	cmdDatabaseRestoreFile := cmdDatabaseRestore.Arg("file", "file with SQL commands").Required().String()
+	cmdDatabaseRestoreName := cmdDatabaseRestore.Arg("name", "specifies the name of the database").Required().String()
+	cmdDatabaseRestorePath := cmdDatabaseRestore.Arg("path", "file with SQL commands").Required().String()
 
 	cmd, err := app.Parse(os.Args[1:])
 	if err != nil {
@@ -142,7 +143,7 @@ func (app *application) run() error {
 	case cmdDatabaseBackup.FullCommand():
 		return database.Backup(dbConn, s3Cred, *cmdDatabaseBackupName, *cmdDatabaseBackupPath)
 	case cmdDatabaseRestore.FullCommand():
-		return database.Restore(dbConn, s3Cred, *cmdDatabaseRestoreFile)
+		return database.Restore(dbConn, s3Cred, *cmdDatabaseRestoreName, *cmdDatabaseRestorePath)
 	}
 
 	clt, err := client.New(cfg)

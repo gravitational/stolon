@@ -111,11 +111,11 @@ func DownloadFromS3(cred S3Credentials, src string, dest string) (string, error)
 	}
 
 	dest = path.Join(dest, path.Base(src))
-	err = client.CopyObject(loc.Bucket, src, dest, minio.NewCopyConditions())
-	if err != nil {
+	if err := client.FGetObject(loc.Bucket, loc.Path, dest); err != nil {
 		return "", trace.Wrap(err)
 	}
-	log.Infof("Successfully downloaded %s", dest)
+
+	log.Infof("Successfully downloaded %s to %s", src, dest)
 
 	return dest, nil
 }

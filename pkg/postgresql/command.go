@@ -71,7 +71,7 @@ func backupToFile(conn ConnSettings, name, dest string) error {
 	return nil
 }
 
-func restoreFromS3(conn ConnSettings, s3Cred store.S3Credentials, src string) error {
+func restoreFromS3(conn ConnSettings, s3Cred store.S3Credentials, dbName, src string) error {
 	tempDir, err := ioutil.TempDir("", "stolonctl")
 	if err != nil {
 		return trace.Wrap(err)
@@ -83,17 +83,23 @@ func restoreFromS3(conn ConnSettings, s3Cred store.S3Credentials, src string) er
 		return trace.Wrap(err)
 	}
 
-	if err = restoreFromFile(conn, result); err != nil {
+	if err = restoreFromFile(conn, dbName, result); err != nil {
 		return trace.Wrap(err)
 	}
 
 	return nil
 }
 
-func restoreFromFile(conn ConnSettings, src string) error {
+func restoreFromFile(conn ConnSettings, name, src string) error {
 	log.Infof("Restore from %s", src)
 
-	cmd := newPGCommand(PgRestoreBin, conn, src)
+	cmd := newPGCommand(
+		PgRestoreBin, conn,
+		"--dbname", name,
+		"--clean",
+		"--if-exists",
+		"--single-transaction",
+		src)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return trace.Wrap(err, fmt.Sprintf("cmd output: %s", string(out)))
@@ -135,14 +141,15 @@ func Backup(conn ConnSettings, s3Cred store.S3Credentials, dbName, folder string
 	return result, nil
 }
 
-func Restore(conn ConnSettings, s3Cred store.S3Credentials, src string) error {
+func Restore(conn ConnSettings, s3Cred store.S3Credentials, dbName, src string) error {
 	if strings.HasPrefix(src, "s3://") {
-		if err := restoreFromS3(conn, s3Cred, src); err != nil {
+		if err := restoreFromS3(conn, s3Cred, dbName, src); err != nil {
 			return trace.Wrap(err)
 		}
+		return nil
 	}
 
-	if err := restoreFromFile(conn, src); err != nil {
+	if err := restoreFromFile(conn, dbName, src); err != nil {
 		trace.Wrap(err)
 	}
 
