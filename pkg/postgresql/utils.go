@@ -129,7 +129,7 @@ func ReplicationLagFunction(ctx context.Context, connString string) error {
 	}
 	defer db.Close()
 
-	functionQuery := `CREATE FUNCTION pg_replication_lag() RETURNS double precision AS $$
+	functionQuery := `CREATE OR REPLACE FUNCTION pg_replication_lag() RETURNS double precision AS $$
                       SELECT CASE WHEN pg_last_xlog_receive_location() = pg_last_xlog_replay_location() THEN 0
                       ELSE EXTRACT (EPOCH FROM now() - pg_last_xact_replay_timestamp()) END;
                       $$ LANGUAGE SQL`
