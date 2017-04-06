@@ -699,7 +699,13 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 	}
 
 	if len(cv.KeepersRole) == 0 {
-		if !initialized {
+		if initialized {
+			err = pgm.CreateReplicationLagFunction()
+			if err != nil {
+				log.Errorf("failed to create replication lag function: %v", err)
+				return
+			}
+		} else {
 			log.Infof("Initializing database")
 			if err = pgm.Init(); err != nil {
 				log.Errorf("failed to initialize postgres instance: %v", err)
@@ -707,6 +713,7 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 			}
 			initialized = true
 		}
+
 	}
 
 	started := false
