@@ -630,6 +630,11 @@ func (p *PostgresKeeper) resync(followed *cluster.KeeperState, initialized, star
 }
 
 func (p *PostgresKeeper) isDifferentTimelineBranch(fPGState *cluster.PostgresState, pgState *cluster.PostgresState) bool {
+	if fPGState.SystemID != pgState.SystemID {
+		log.Infof("followed instance system ID %d different than our system ID %d", fPGState.SystemID, pgState.SystemID)
+		return true
+	}
+
 	if fPGState.TimelineID < pgState.TimelineID {
 		log.Infof("followed instance timeline %d < than our timeline %d", fPGState.TimelineID, pgState.TimelineID)
 		return true
