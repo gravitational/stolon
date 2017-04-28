@@ -235,6 +235,10 @@ func (s *Sentinel) GetBestStandby(cv *cluster.ClusterView, keepersState cluster.
 			log.Warningf("ignoring node since its pg state is unknown")
 			continue
 		}
+		if masterState.PGState.SystemID != k.PGState.SystemID {
+			log.Warningf("ignoring node since it's system ID (%s) is different than the master system ID (%s)", k.PGState.SystemID, masterState.PGState.TimelineID)
+			continue
+		}
 		if masterState.PGState.TimelineID != k.PGState.TimelineID {
 			log.Warningf("ignoring node since its pg timeline (%s) is different than master timeline (%d)", keepersState[id].PGState.TimelineID, masterState.PGState.TimelineID)
 			continue
