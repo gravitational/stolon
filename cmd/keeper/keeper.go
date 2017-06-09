@@ -127,9 +127,10 @@ func init() {
 var defaultPGParameters = pg.Parameters{
 	"unix_socket_directories": "/tmp",
 	"wal_level":               "hot_standby",
-	"wal_keep_segments":       "128",
+	"wal_keep_segments":       "64",
 	"hot_standby":             "on",
 	"max_connections":         "500",
+	"checkpoint_segments":     "3",
 }
 
 func readPasswordFromFile(filepath string) (string, error) {
