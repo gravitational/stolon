@@ -435,11 +435,11 @@ func (p *Manager) writePgHba() error {
 	defer f.Close()
 
 	// TODO(sgotti) Do not set this but let the user provide its ph_hba.conf file/entries
-	f.WriteString("host all all 0.0.0.0/0 md5\n")
-	f.WriteString("host all all ::0/0 md5\n")
+	f.WriteString("hostssl all all 0.0.0.0/0 md5\n")
+	f.WriteString("hostssl all all ::0/0 md5\n")
 	// TODO(sgotti) Configure this dynamically based on our followers provided by the clusterview
-	f.WriteString(fmt.Sprintf("host replication %s %s md5\n", p.replUsername, "0.0.0.0/0"))
-	f.WriteString(fmt.Sprintf("host replication %s %s md5\n", p.replUsername, "::0/0"))
+	f.WriteString(fmt.Sprintf("hostssl replication %s %s md5\n", p.replUsername, "0.0.0.0/0"))
+	f.WriteString(fmt.Sprintf("hostssl replication %s %s md5\n", p.replUsername, "::0/0"))
 	return nil
 }
 
