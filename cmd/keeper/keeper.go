@@ -365,7 +365,7 @@ func (p *PostgresKeeper) saveCVVersion(version int) error {
 	p.cvVersionMutex.Lock()
 	defer p.cvVersionMutex.Unlock()
 	p.cvVersion = version
-	return ioutil.WriteFile(filepath.Join(p.dataDir, "cvversion"), []byte(strconv.Itoa(version)), 0600)
+	return common.WriteFileAtomic(filepath.Join(p.dataDir, "cvversion"), []byte(strconv.Itoa(version)), 0600)
 }
 
 func (p *PostgresKeeper) loadCVVersion() error {
@@ -1022,7 +1022,7 @@ func getIDFromFile(conf config) (string, error) {
 }
 
 func saveIDToFile(conf config, id string) error {
-	return ioutil.WriteFile(getIDFilePath(conf), []byte(id), 0600)
+	return common.WriteFileAtomic(getIDFilePath(conf), []byte(id), 0600)
 }
 
 func sigHandler(sigs chan os.Signal, stop chan bool) {
@@ -1160,5 +1160,7 @@ func keeper(cmd *cobra.Command, args []string) {
 	}
 	go p.Start()
 
-	<-end
+	if err := <-end; err != nil {
+		log.Error(err.Error())
+	}
 }
