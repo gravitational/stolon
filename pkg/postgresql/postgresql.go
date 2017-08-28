@@ -428,19 +428,22 @@ func (p *Manager) WriteRecoveryConf(followedConnParams ConnParams) error {
 }
 
 func (p *Manager) writePgHba() error {
-	f, err := os.OpenFile(filepath.Join(p.dataDir, "pg_hba.conf"), os.O_APPEND|os.O_RDWR, 0)
-	if err != nil {
-		return err
+	var fileContent []byte
+	var content = [][]byte{
+		[]byte("local all all  trust\n"),
+		[]byte("host all all 127.0.0.1/32 trust\n"),
+		[]byte("host all all ::1/128 trust\n"),
+		[]byte("hostssl all all 0.0.0.0/0 md5\n"),
+		[]byte("hostssl all all ::0/0 md5\n"),
+		[]byte(fmt.Sprintf("hostssl replication %s %s md5\n", p.replUsername, "0.0.0.0/0")),
+		[]byte(fmt.Sprintf("hostssl replication %s %s md5\n", p.replUsername, "::0/0")),
 	}
-	defer f.Close()
 
-	// TODO(sgotti) Do not set this but let the user provide its ph_hba.conf file/entries
-	f.WriteString("hostssl all all 0.0.0.0/0 md5\n")
-	f.WriteString("hostssl all all ::0/0 md5\n")
-	// TODO(sgotti) Configure this dynamically based on our followers provided by the clusterview
-	f.WriteString(fmt.Sprintf("hostssl replication %s %s md5\n", p.replUsername, "0.0.0.0/0"))
-	f.WriteString(fmt.Sprintf("hostssl replication %s %s md5\n", p.replUsername, "::0/0"))
-	return nil
+	for _, c := range content {
+		fileContent = append(fileContent, c...)
+	}
+
+	return common.WriteFileAtomic(filepath.Join(p.dataDir, "pg_hba.conf"), fileContent, 0600)
 }
 
 func (p *Manager) SyncFromFollowedPGRewind(followedConnParams ConnParams, password string) error {
