@@ -428,22 +428,15 @@ func (p *Manager) WriteRecoveryConf(followedConnParams ConnParams) error {
 }
 
 func (p *Manager) writePgHba() error {
-	var fileContent []byte
-	var content = [][]byte{
-		[]byte("local all all  trust\n"),
-		[]byte("host all all 127.0.0.1/32 trust\n"),
-		[]byte("host all all ::1/128 trust\n"),
-		[]byte("hostssl all all 0.0.0.0/0 md5\n"),
-		[]byte("hostssl all all ::0/0 md5\n"),
-		[]byte(fmt.Sprintf("hostssl replication %s %s md5\n", p.replUsername, "0.0.0.0/0")),
-		[]byte(fmt.Sprintf("hostssl replication %s %s md5\n", p.replUsername, "::0/0")),
-	}
+	contents := fmt.Sprintf(`local all all  trust
+host all all 127.0.0.1/32 trust
+host all all ::1/128 trust
+hostssl all all 0.0.0.0/0 md5
+hostssl all all ::0/0 md5
+hostssl replication %[1]s 0.0.0.0/0 md5
+hostssl replication %[1]s ::0/0 md5`, p.replUsername)
 
-	for _, c := range content {
-		fileContent = append(fileContent, c...)
-	}
-
-	return common.WriteFileAtomic(filepath.Join(p.dataDir, "pg_hba.conf"), fileContent, 0600)
+	return common.WriteFileAtomic(filepath.Join(p.dataDir, "pg_hba.conf"), []byte(contents), 0600)
 }
 
 func (p *Manager) SyncFromFollowedPGRewind(followedConnParams ConnParams, password string) error {
