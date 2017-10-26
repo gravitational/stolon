@@ -496,9 +496,9 @@ func (s *Sentinel) updateKeepersState(keepersState cluster.KeepersState, keepers
 		k.Healthy = s.isKeeperHealthy(k)
 	}
 
-	for _, v := range newKeepersState {
+	for k, v := range newKeepersState {
 		for ki, vi := range newKeepersState {
-			if vi.ListenAddress == v.ListenAddress && !vi.Healthy {
+			if vi.ListenAddress == v.ListenAddress && !vi.Healthy && k != ki {
 				delete(newKeepersState, ki)
 			}
 		}
