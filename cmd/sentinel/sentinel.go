@@ -496,6 +496,14 @@ func (s *Sentinel) updateKeepersState(keepersState cluster.KeepersState, keepers
 		k.Healthy = s.isKeeperHealthy(k)
 	}
 
+	for _, v := range newKeepersState {
+		for ki, vi := range newKeepersState {
+			if vi.ListenAddress == v.ListenAddress && !vi.Healthy {
+				delete(newKeepersState, ki)
+			}
+		}
+	}
+
 	return newKeepersState
 }
 
@@ -573,6 +581,13 @@ func (s *Sentinel) updateClusterView(cv *cluster.ClusterView, keepersState clust
 				// This shouldn't happen
 				panic(err)
 			}
+		}
+	}
+
+	// Delete stale keepers
+	for id := range newKeepersRole {
+		if _, ok := keepersState[id]; !ok {
+			delete(newKeepersRole, id)
 		}
 	}
 
