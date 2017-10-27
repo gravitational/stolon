@@ -446,7 +446,7 @@ func getKeepersPGState(ctx context.Context, ki cluster.KeepersInfo) map[string]*
 	return keepersPGState
 }
 
-func (s *Sentinel) updateKeepersState(keepersState cluster.KeepersState, keepersInfo cluster.KeepersInfo, keepersPGState map[string]*cluster.PostgresState) cluster.KeepersState {
+func (s *Sentinel) updateKeepersState(cv *cluster.ClusterView, keepersState cluster.KeepersState, keepersInfo cluster.KeepersInfo, keepersPGState map[string]*cluster.PostgresState) cluster.KeepersState {
 	// Create newKeepersState as a copy of the current keepersState
 	newKeepersState := keepersState.Copy()
 
@@ -498,10 +498,8 @@ func (s *Sentinel) updateKeepersState(keepersState cluster.KeepersState, keepers
 
 	// Delete unhealthy keepers, except of master
 	for k, v := range newKeepersState {
-		for ki, vi := range newKeepersState {
-			if vi.ListenAddress == v.ListenAddress && !vi.Healthy && k != ki {
-				delete(newKeepersState, ki)
-			}
+		if !v.Healthy && k != cv.Master {
+			delete(newKeepersState, k)
 		}
 	}
 
@@ -855,7 +853,7 @@ func (s *Sentinel) clusterSentinelCheck(pctx context.Context) {
 		return
 	}
 
-	newKeepersState := s.updateKeepersState(keepersState, keepersInfo, keepersPGState)
+	newKeepersState := s.updateKeepersState(cv, keepersState, keepersInfo, keepersPGState)
 	log.Debugf(spew.Sprintf("newKeepersState: %#v", newKeepersState))
 
 	newcv, err := s.updateClusterView(cv, newKeepersState)
