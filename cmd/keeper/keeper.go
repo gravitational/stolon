@@ -908,9 +908,9 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 				log.Errorf("err: %v", err)
 				return
 			}
-			// Delete replication slots
+			// Delete replication slots on standby
 			for _, slotName := range replSlots {
-				log.Infof("deleted replication slot %v because it is a standby", slotName)
+				log.Infof("deleting replication slot for standby keeper %q", slotName)
 				if err = pgm.DropReplicationSlot(slotName); err != nil {
 					log.Errorf("err: %v", err)
 				}

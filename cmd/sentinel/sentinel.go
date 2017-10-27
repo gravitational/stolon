@@ -496,10 +496,10 @@ func (s *Sentinel) updateKeepersState(cv *cluster.ClusterView, keepersState clus
 		k.Healthy = s.isKeeperHealthy(k)
 	}
 
-	// Delete unhealthy keepers, except of master
-	for k, v := range newKeepersState {
-		if !v.Healthy && k != cv.Master {
-			delete(newKeepersState, k)
+	// Delete unhealthy keepers, except master
+	for id, state := range newKeepersState {
+		if !state.Healthy && id != cv.Master {
+			delete(newKeepersState, id)
 		}
 	}
 
@@ -584,6 +584,8 @@ func (s *Sentinel) updateClusterView(cv *cluster.ClusterView, keepersState clust
 	}
 
 	// Delete stale keepers
+	// if keeperstate map does not contain keeper id, which we get from
+	// clusterview map then delete it
 	for id := range newKeepersRole {
 		if _, ok := keepersState[id]; !ok {
 			delete(newKeepersRole, id)
