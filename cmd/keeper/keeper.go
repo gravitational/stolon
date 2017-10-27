@@ -902,6 +902,20 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 				}
 			}
 
+			var replSlots []string
+			replSlots, err = pgm.GetReplicationSlots()
+			if err != nil {
+				log.Errorf("err: %v", err)
+				return
+			}
+			// Delete replication slots on standby
+			for _, slotName := range replSlots {
+				log.Infof("deleting replication slot for standby keeper %q", slotName)
+				if err = pgm.DropReplicationSlot(slotName); err != nil {
+					log.Errorf("err: %v", err)
+				}
+			}
+
 			// Check that we can sync with followed instance
 
 			// Check timeline history
