@@ -19,11 +19,8 @@ import (
 	"io"
 	"net"
 	"sync"
-
-	"github.com/sorintlab/pollon/Godeps/_workspace/src/github.com/coreos/pkg/capnslog"
+	"time"
 )
-
-var log = capnslog.NewPackageLogger("github.com/sorintlab/pollon", "pollon")
 
 type ConfData struct {
 	DestAddr *net.TCPAddr
@@ -38,6 +35,11 @@ type Proxy struct {
 	stop       chan struct{}
 	endCh      chan error
 	connMutex  sync.Mutex
+
+	keepAlive         bool
+	keepAliveIdle     time.Duration
+	keepAliveCount    int
+	keepAliveInterval time.Duration
 }
 
 func NewProxy(listener *net.TCPListener) (*Proxy, error) {
@@ -57,7 +59,7 @@ func (p *Proxy) proxyConn(conn *net.TCPConn) {
 	destAddr := p.destAddr
 	p.connMutex.Unlock()
 	defer func() {
-		log.Debugf("closing source connection: %v", conn)
+		log.Printf("closing source connection: %v", conn)
 		conn.Close()
 	}()
 	defer conn.Close()
@@ -66,13 +68,16 @@ func (p *Proxy) proxyConn(conn *net.TCPConn) {
 		return
 	}
 
-	destConn, err := net.DialTCP("tcp", nil, p.destAddr)
+	var d net.Dialer
+	d.Cancel = closeConns
+	destConnInterface, err := d.Dial("tcp", destAddr.String())
 	if err != nil {
 		conn.Close()
 		return
 	}
+	destConn := destConnInterface.(*net.TCPConn)
 	defer func() {
-		log.Debugf("closing destination connection: %v", destConn)
+		log.Printf("closing destination connection: %v", destConn)
 		destConn.Close()
 	}()
 
@@ -86,7 +91,7 @@ func (p *Proxy) proxyConn(conn *net.TCPConn) {
 		}
 		conn.Close()
 		destConn.CloseRead()
-		log.Debugf("ending. copied %d bytes from source to dest", n)
+		log.Printf("ending. copied %d bytes from source to dest", n)
 	}()
 	wg.Add(1)
 	go func() {
@@ -96,7 +101,7 @@ func (p *Proxy) proxyConn(conn *net.TCPConn) {
 		}
 		destConn.Close()
 		conn.CloseRead()
-		log.Debugf("ending. copied %d bytes from dest to source", n)
+		log.Printf("ending. copied %d bytes from dest to source", n)
 	}()
 
 	go func() {
@@ -106,10 +111,10 @@ func (p *Proxy) proxyConn(conn *net.TCPConn) {
 
 	select {
 	case <-end:
-		log.Debugf("all io copy goroutines done")
+		log.Printf("all io copy goroutines done")
 		return
 	case <-closeConns:
-		log.Debugf("closing all connections")
+		log.Printf("closing all connections")
 		return
 	}
 }
@@ -138,6 +143,12 @@ func (p *Proxy) accepter() {
 			p.endCh <- fmt.Errorf("accept error: %v", err)
 			return
 		}
+		if p.keepAlive {
+			if err := p.SetupKeepAlive(conn); err != nil {
+				p.endCh <- fmt.Errorf("setKeepAlive error: %v", err)
+				return
+			}
+		}
 		go p.proxyConn(conn)
 	}
 }
@@ -155,4 +166,20 @@ func (p *Proxy) Start() error {
 		return fmt.Errorf("proxy error: %v", err)
 	}
 	return nil
+}
+
+func (p *Proxy) SetKeepAlive(keepalive bool) {
+	p.keepAlive = keepalive
+}
+
+func (p *Proxy) SetKeepAliveIdle(d time.Duration) {
+	p.keepAliveIdle = d
+}
+
+func (p *Proxy) SetKeepAliveCount(n int) {
+	p.keepAliveCount = n
+}
+
+func (p *Proxy) SetKeepAliveInterval(d time.Duration) {
+	p.keepAliveInterval = d
 }

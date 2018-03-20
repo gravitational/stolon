@@ -18,20 +18,12 @@ const (
 	// time to check if the watched key has changed. This
 	// affects the minimum time it takes to cancel a watch.
 	DefaultWatchWaitTime = 15 * time.Second
-
-	// RenewSessionRetryMax is the number of time we should try
-	// to renew the session before giving up and throwing an error
-	RenewSessionRetryMax = 5
 )
 
 var (
 	// ErrMultipleEndpointsUnsupported is thrown when there are
 	// multiple endpoints specified for Consul
 	ErrMultipleEndpointsUnsupported = errors.New("consul does not support multiple endpoints")
-
-	// ErrSessionRenew is thrown when the session can't be
-	// renewed because the Consul version does not support sessions
-	ErrSessionRenew = errors.New("cannot set or renew session for ttl, unable to operate on sessions")
 )
 
 // Consul is the receiver type for the
@@ -107,7 +99,7 @@ func (s *Consul) normalize(key string) string {
 	return strings.TrimPrefix(key, "/")
 }
 
-func (s *Consul) renewSession(pair *api.KVPair, ttl time.Duration) error {
+func (s *Consul) refreshSession(pair *api.KVPair, ttl time.Duration) error {
 	// Check if there is any previous session with an active TTL
 	session, err := s.getActiveSession(pair.Key)
 	if err != nil {
@@ -142,7 +134,10 @@ func (s *Consul) renewSession(pair *api.KVPair, ttl time.Duration) error {
 	}
 
 	_, _, err = s.client.Session().Renew(session, nil)
-	return err
+	if err != nil {
+		return s.refreshSession(pair, ttl)
+	}
+	return nil
 }
 
 // getActiveSession checks if the key already has
@@ -186,20 +181,13 @@ func (s *Consul) Put(key string, value []byte, opts *store.WriteOptions) error {
 	p := &api.KVPair{
 		Key:   key,
 		Value: value,
-		Flags: api.LockFlagValue,
 	}
 
 	if opts != nil && opts.TTL > 0 {
-		// Create or renew a session holding a TTL. Operations on sessions
-		// are not deterministic: creating or renewing a session can fail
-		for retry := 1; retry <= RenewSessionRetryMax; retry++ {
-			err := s.renewSession(p, opts.TTL)
-			if err == nil {
-				break
-			}
-			if retry == RenewSessionRetryMax {
-				return ErrSessionRenew
-			}
+		// Create or refresh the session
+		err := s.refreshSession(p, opts.TTL)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -437,7 +425,7 @@ func (l *consulLock) Unlock() error {
 // modified in the meantime, throws an error if this is the case
 func (s *Consul) AtomicPut(key string, value []byte, previous *store.KVPair, options *store.WriteOptions) (bool, *store.KVPair, error) {
 
-	p := &api.KVPair{Key: s.normalize(key), Value: value, Flags: api.LockFlagValue}
+	p := &api.KVPair{Key: s.normalize(key), Value: value}
 
 	if previous == nil {
 		// Consul interprets ModifyIndex = 0 as new key.
@@ -446,14 +434,9 @@ func (s *Consul) AtomicPut(key string, value []byte, previous *store.KVPair, opt
 		p.ModifyIndex = previous.LastIndex
 	}
 
-	ok, _, err := s.client.KV().CAS(p, nil)
-	if err != nil {
+	if work, _, err := s.client.KV().CAS(p, nil); err != nil {
 		return false, nil, err
-	}
-	if !ok {
-		if previous == nil {
-			return false, nil, store.ErrKeyExists
-		}
+	} else if !work {
 		return false, nil, store.ErrKeyModified
 	}
 
@@ -472,14 +455,7 @@ func (s *Consul) AtomicDelete(key string, previous *store.KVPair) (bool, error) 
 		return false, store.ErrPreviousNotSpecified
 	}
 
-	p := &api.KVPair{Key: s.normalize(key), ModifyIndex: previous.LastIndex, Flags: api.LockFlagValue}
-
-	// Extra Get operation to check on the key
-	_, err := s.Get(key)
-	if err != nil && err == store.ErrKeyNotFound {
-		return false, err
-	}
-
+	p := &api.KVPair{Key: s.normalize(key), ModifyIndex: previous.LastIndex}
 	if work, _, err := s.client.KV().DeleteCAS(p, nil); err != nil {
 		return false, err
 	} else if !work {
