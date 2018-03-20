@@ -222,11 +222,11 @@
 		},
 		{
 			"ImportPath": "golang.org/x/sys/unix",
-			"Rev": "a408501be4d17ee978c04a618e7a1b22af058c0e"
+			"Rev": "7ceb54c8418b8f9cdf0177b511d5cbb06e9fae39"
 		},
 		{
 			"ImportPath": "golang.org/x/sys/windows",
-			"Rev": "a408501be4d17ee978c04a618e7a1b22af058c0e"
+			"Rev": "7ceb54c8418b8f9cdf0177b511d5cbb06e9fae39"
 		},
 		{
 			"ImportPath": "k8s.io/kubernetes/pkg/util/strategicpatch",
