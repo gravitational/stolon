@@ -3,10 +3,10 @@ package main
 import (
 	"net/http"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/gravitational/stolon/pkg/postgresql"
 	"github.com/gravitational/stolon/pkg/store"
 	"github.com/gravitational/trace"
+	log "github.com/sirupsen/logrus"
 )
 
 type DatabaseOperation struct {

@@ -19,9 +19,9 @@ import (
 	"path"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/gravitational/trace"
 	minio "github.com/minio/minio-go"
+	log "github.com/sirupsen/logrus"
 )
 
 type S3Credentials struct {
