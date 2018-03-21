@@ -19,7 +19,7 @@ import (
 
 	"github.com/gravitational/trace"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 // InitLoggerCLI tools by default log into syslog, not stderr

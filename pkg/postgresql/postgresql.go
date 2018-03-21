@@ -30,8 +30,8 @@ import (
 
 	"github.com/gravitational/stolon/common"
 
-	log "github.com/Sirupsen/logrus"
 	_ "github.com/lib/pq"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 

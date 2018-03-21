@@ -6,11 +6,6 @@ import (
 	"net/http"
 )
 
-const (
-	statusTooManyRequests = 429
-	statusTrustError      = 504
-)
-
 // WriteError sets up HTTP error response and writes it to writer w
 func WriteError(w http.ResponseWriter, err error) {
 	if IsAggregate(err) {
@@ -30,32 +25,28 @@ func WriteError(w http.ResponseWriter, err error) {
 	writeError(w, err)
 }
 
-func writeError(w http.ResponseWriter, err error) {
+// ErrorToCode returns an appropriate HTTP status code based on the provided error type
+func ErrorToCode(err error) int {
 	if IsNotFound(err) {
-		replyJSON(
-			w, http.StatusNotFound, err)
+		return http.StatusNotFound
 	} else if IsBadParameter(err) || IsOAuth2(err) {
-		replyJSON(
-			w, http.StatusBadRequest, err)
+		return http.StatusBadRequest
 	} else if IsCompareFailed(err) {
-		replyJSON(
-			w, http.StatusPreconditionFailed, err)
+		return http.StatusPreconditionFailed
 	} else if IsAccessDenied(err) {
-		replyJSON(
-			w, http.StatusForbidden, err)
+		return http.StatusForbidden
 	} else if IsAlreadyExists(err) {
-		replyJSON(
-			w, http.StatusConflict, err)
+		return http.StatusConflict
 	} else if IsLimitExceeded(err) {
-		replyJSON(
-			w, statusTooManyRequests, err)
+		return http.StatusTooManyRequests
 	} else if IsConnectionProblem(err) {
-		replyJSON(
-			w, http.StatusGatewayTimeout, err)
-	} else {
-		replyJSON(
-			w, http.StatusInternalServerError, err)
+		return http.StatusGatewayTimeout
 	}
+	return http.StatusInternalServerError
+}
+
+func writeError(w http.ResponseWriter, err error) {
+	replyJSON(w, ErrorToCode(err), err)
 }
 
 // ReadError converts http error to internal error type
@@ -65,19 +56,19 @@ func ReadError(statusCode int, re []byte) error {
 	var e error
 	switch statusCode {
 	case http.StatusNotFound:
-		e = &NotFoundError{}
+		e = &NotFoundError{Message: string(re)}
 	case http.StatusBadRequest:
-		e = &BadParameterError{}
+		e = &BadParameterError{Message: string(re)}
 	case http.StatusPreconditionFailed:
-		e = &CompareFailedError{}
+		e = &CompareFailedError{Message: string(re)}
 	case http.StatusForbidden:
-		e = &AccessDeniedError{}
+		e = &AccessDeniedError{Message: string(re)}
 	case http.StatusConflict:
-		e = &AlreadyExistsError{}
-	case statusTooManyRequests:
-		e = &LimitExceededError{}
+		e = &AlreadyExistsError{Message: string(re)}
+	case http.StatusTooManyRequests:
+		e = &LimitExceededError{Message: string(re)}
 	case http.StatusGatewayTimeout:
-		e = &ConnectionProblemError{}
+		e = &ConnectionProblemError{Message: string(re)}
 	default:
 		if statusCode < 200 || statusCode > 299 {
 			return Errorf(string(re))
@@ -121,7 +112,7 @@ func unmarshalError(err error, responseBody []byte) error {
 	if len(responseBody) == 0 {
 		return err
 	}
-	var raw rawTrace
+	var raw RawTrace
 	if err2 := json.Unmarshal(responseBody, &raw); err2 != nil {
 		return err
 	}

@@ -10,10 +10,10 @@ import (
 
 	"syscall"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/gravitational/stolon/pkg/postgresql"
 	"github.com/gravitational/trace"
 	"github.com/kelseyhightower/envconfig"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/rpc"
