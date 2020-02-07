@@ -142,7 +142,7 @@ func (p *Manager) Init() error {
 		err = fmt.Errorf("error creating replication lag function: %v", err)
 		goto out
 	}
-	if err = p.Stop(true); err != nil {
+	if err = p.Stop(false); err != nil {
 		err = fmt.Errorf("error stopping instance: %v", err)
 		goto out
 	}
@@ -222,7 +222,7 @@ func (p *Manager) Reload() error {
 
 func (p *Manager) Restart(fast bool) error {
 	log.Infof("Restarting database")
-	if err := p.Stop(true); err != nil {
+	if err := p.Stop(false); err != nil {
 		return err
 	}
 	if err := p.Start(); err != nil {
