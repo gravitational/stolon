@@ -549,7 +549,11 @@ func (p *PostgresKeeper) Start() {
 		select {
 		case sig := <-exitSignals:
 			log.Infof("Caught signal: %v.", sig)
-			p.stop <- true
+			log.Debugf("Stopping stolon keeper.")
+			cancel()
+			p.pgm.Stop(false)
+			p.end <- nil
+			return
 		case <-p.stop:
 			log.Debugf("stopping stolon keeper")
 			cancel()
