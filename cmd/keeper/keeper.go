@@ -25,6 +25,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/gravitational/stolon/common"
@@ -529,7 +530,7 @@ func (p *PostgresKeeper) Start() {
 	pgm := postgresql.NewManager(p.id, p.pgBinPath, p.dataDir, p.pgConfDir, pgParameters, p.getLocalConnParams().ConnString(), p.getOurReplConnParams().ConnString(), p.pgSUUsername, p.pgSUPassword, p.pgReplUsername, p.pgReplPassword, p.clusterConfig.RequestTimeout)
 	p.pgm = pgm
 
-	p.pgm.Stop(true)
+	p.pgm.Stop(false)
 
 	http.HandleFunc("/info", p.infoHandler)
 	http.HandleFunc("/pgstate", p.pgStateHandler)
@@ -541,12 +542,18 @@ func (p *PostgresKeeper) Start() {
 	smTimerCh := time.NewTimer(0).C
 	updatePGStateTimerCh := time.NewTimer(0).C
 	publishCh := time.NewTimer(0).C
+	exitSignals := make(chan os.Signal, 1)
+	signal.Notify(exitSignals, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+
 	for true {
 		select {
+		case sig := <-exitSignals:
+			log.Infof("Caught signal: %v.", sig)
+			p.stop <- true
 		case <-p.stop:
 			log.Debugf("stopping stolon keeper")
 			cancel()
-			p.pgm.Stop(true)
+			p.pgm.Stop(false)
 			p.end <- nil
 			return
 
