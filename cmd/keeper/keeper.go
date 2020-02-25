@@ -41,7 +41,7 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/coreos/rkt/pkg/lock"
 	"github.com/davecgh/go-spew/spew"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
@@ -552,19 +552,22 @@ func (p *PostgresKeeper) Start() {
 			log.Debugf("Stopping stolon keeper.")
 			cancel()
 			p.pgm.Stop(false)
-			p.end <- nil
+			close(p.end)
 			return
 		case <-p.stop:
 			log.Debugf("stopping stolon keeper")
 			cancel()
 			p.pgm.Stop(false)
-			p.end <- nil
+			close(p.end)
 			return
 
 		case <-smTimerCh:
 			go func() {
 				p.postgresKeeperSM(ctx)
-				endSMCh <- struct{}{}
+				select {
+				case endSMCh <- struct{}{}:
+				case <-ctx.Done():
+				}
 			}()
 
 		case <-endSMCh:
@@ -573,7 +576,10 @@ func (p *PostgresKeeper) Start() {
 		case <-updatePGStateTimerCh:
 			go func() {
 				p.updatePGState(ctx)
-				endPgStatecheckerCh <- struct{}{}
+				select {
+				case endPgStatecheckerCh <- struct{}{}:
+				case <-ctx.Done():
+				}
 			}()
 
 		case <-endPgStatecheckerCh:
@@ -582,7 +588,10 @@ func (p *PostgresKeeper) Start() {
 		case <-publishCh:
 			go func() {
 				p.publish()
-				endPublish <- struct{}{}
+				select {
+				case endPublish <- struct{}{}:
+				case <-ctx.Done():
+				}
 			}()
 
 		case <-endPublish:
