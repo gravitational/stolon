@@ -539,6 +539,7 @@ func (p *PostgresKeeper) Start() {
 	}()
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	smTimerCh := time.NewTimer(0).C
 	updatePGStateTimerCh := time.NewTimer(0).C
 	publishCh := time.NewTimer(0).C
