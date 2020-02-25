@@ -609,7 +609,7 @@ func (p *PostgresKeeper) Start() {
 func (p *PostgresKeeper) resync(followed *cluster.KeeperState, initialized, started bool) error {
 	pgm := p.pgm
 	if initialized && started {
-		if err := pgm.Stop(true); err != nil {
+		if err := pgm.Stop(false); err != nil {
 			return fmt.Errorf("failed to stop pg instance: %v", err)
 		}
 	}
@@ -865,7 +865,7 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 						started = true
 					}
 				} else {
-					if err = pgm.Restart(true); err != nil {
+					if err = pgm.Restart(false); err != nil {
 						log.Errorf("err: %v", err)
 						return
 					}
@@ -984,7 +984,7 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 					log.Errorf("err: %v", err)
 					return
 				}
-				if err = pgm.Restart(true); err != nil {
+				if err = pgm.Restart(false); err != nil {
 					log.Errorf("err: %v", err)
 					return
 				}
@@ -1004,7 +1004,7 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 				started = true
 			}
 		} else {
-			if err = pgm.Restart(true); err != nil {
+			if err = pgm.Restart(false); err != nil {
 				log.Errorf("err: %v", err)
 				return
 			}
