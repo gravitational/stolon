@@ -142,7 +142,8 @@ func (p *Manager) Init() error {
 		err = fmt.Errorf("error creating replication lag function: %v", err)
 		goto out
 	}
-	if err = p.Stop(true); err != nil {
+
+	if err = p.Stop(false); err != nil {
 		err = fmt.Errorf("error stopping instance: %v", err)
 		goto out
 	}
@@ -184,6 +185,7 @@ func (p *Manager) Stop(fast bool) error {
 	if fast {
 		cmd.Args = append(cmd.Args, "-m", "fast")
 	}
+	log.Infof("Executing command: %s", cmd.String())
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("error: %v, output: %s", err, string(out))
@@ -222,7 +224,7 @@ func (p *Manager) Reload() error {
 
 func (p *Manager) Restart(fast bool) error {
 	log.Infof("Restarting database")
-	if err := p.Stop(true); err != nil {
+	if err := p.Stop(fast); err != nil {
 		return err
 	}
 	if err := p.Start(); err != nil {

@@ -25,6 +25,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/gravitational/stolon/common"
@@ -40,7 +41,7 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/coreos/rkt/pkg/lock"
 	"github.com/davecgh/go-spew/spew"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
@@ -529,7 +530,7 @@ func (p *PostgresKeeper) Start() {
 	pgm := postgresql.NewManager(p.id, p.pgBinPath, p.dataDir, p.pgConfDir, pgParameters, p.getLocalConnParams().ConnString(), p.getOurReplConnParams().ConnString(), p.pgSUUsername, p.pgSUPassword, p.pgReplUsername, p.pgReplPassword, p.clusterConfig.RequestTimeout)
 	p.pgm = pgm
 
-	p.pgm.Stop(true)
+	p.pgm.Stop(false)
 
 	http.HandleFunc("/info", p.infoHandler)
 	http.HandleFunc("/pgstate", p.pgStateHandler)
@@ -538,22 +539,35 @@ func (p *PostgresKeeper) Start() {
 	}()
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	smTimerCh := time.NewTimer(0).C
 	updatePGStateTimerCh := time.NewTimer(0).C
 	publishCh := time.NewTimer(0).C
-	for true {
+	exitSignals := make(chan os.Signal, 1)
+	signal.Notify(exitSignals, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+
+	for {
 		select {
-		case <-p.stop:
-			log.Debugf("stopping stolon keeper")
+		case sig := <-exitSignals:
+			log.Infof("Caught signal: %v. Stopping stolon keeper.", sig)
 			cancel()
-			p.pgm.Stop(true)
-			p.end <- nil
+			p.pgm.Stop(false)
+			close(p.end)
+			return
+		case <-p.stop:
+			log.Info("Stopping stolon keeper.")
+			cancel()
+			p.pgm.Stop(false)
+			close(p.end)
 			return
 
 		case <-smTimerCh:
 			go func() {
 				p.postgresKeeperSM(ctx)
-				endSMCh <- struct{}{}
+				select {
+				case endSMCh <- struct{}{}:
+				case <-ctx.Done():
+				}
 			}()
 
 		case <-endSMCh:
@@ -562,7 +576,10 @@ func (p *PostgresKeeper) Start() {
 		case <-updatePGStateTimerCh:
 			go func() {
 				p.updatePGState(ctx)
-				endPgStatecheckerCh <- struct{}{}
+				select {
+				case endPgStatecheckerCh <- struct{}{}:
+				case <-ctx.Done():
+				}
 			}()
 
 		case <-endPgStatecheckerCh:
@@ -571,17 +588,20 @@ func (p *PostgresKeeper) Start() {
 		case <-publishCh:
 			go func() {
 				p.publish()
-				endPublish <- struct{}{}
+				select {
+				case endPublish <- struct{}{}:
+				case <-ctx.Done():
+				}
 			}()
 
 		case <-endPublish:
 			publishCh = time.NewTimer(p.clusterConfig.SleepInterval).C
 
 		case err := <-endApiCh:
+			close(p.stop)
 			if err != nil {
 				log.Fatal("ListenAndServe: ", err)
 			}
-			close(p.stop)
 		}
 	}
 }
@@ -589,7 +609,7 @@ func (p *PostgresKeeper) Start() {
 func (p *PostgresKeeper) resync(followed *cluster.KeeperState, initialized, started bool) error {
 	pgm := p.pgm
 	if initialized && started {
-		if err := pgm.Stop(true); err != nil {
+		if err := pgm.Stop(false); err != nil {
 			return fmt.Errorf("failed to stop pg instance: %v", err)
 		}
 	}
@@ -845,7 +865,7 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 						started = true
 					}
 				} else {
-					if err = pgm.Restart(true); err != nil {
+					if err = pgm.Restart(false); err != nil {
 						log.Errorf("err: %v", err)
 						return
 					}
@@ -964,7 +984,7 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 					log.Errorf("err: %v", err)
 					return
 				}
-				if err = pgm.Restart(true); err != nil {
+				if err = pgm.Restart(false); err != nil {
 					log.Errorf("err: %v", err)
 					return
 				}
@@ -984,7 +1004,7 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 				started = true
 			}
 		} else {
-			if err = pgm.Restart(true); err != nil {
+			if err = pgm.Restart(false); err != nil {
 				log.Errorf("err: %v", err)
 				return
 			}
