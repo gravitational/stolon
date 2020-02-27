@@ -990,25 +990,6 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 				}
 			}
 		}
-	} else if keeperRole.Follow == "" {
-		log.Infof("our cluster requested state is standby following no one")
-		if err = pgm.WriteRecoveryConf(nil); err != nil {
-			log.Errorf("err: %v", err)
-			return
-		}
-		if !started {
-			if err = pgm.Start(); err != nil {
-				log.Errorf("err: %v", err)
-				return
-			} else {
-				started = true
-			}
-		} else {
-			if err = pgm.Restart(false); err != nil {
-				log.Errorf("err: %v", err)
-				return
-			}
-		}
 	}
 
 	// Log synchronous replication changes
