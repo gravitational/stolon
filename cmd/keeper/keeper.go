@@ -895,6 +895,20 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 						started = true
 					}
 				}
+
+				if !pgm.IsReady() {
+					log.Info("Standby is not accepting connections. It's probably waiting for unavailable WALs. Forcing a full resync.")
+					if err = p.resync(followed, initialized, started); err != nil {
+						log.Errorf("failed to full resync from followed instance: %v", err)
+						return
+					}
+					if err = pgm.Start(); err != nil {
+						log.Errorf("err: %v", err)
+						return
+					} else {
+						started = true
+					}
+				}
 			} else {
 				if err = p.resync(followed, initialized, started); err != nil {
 					log.Errorf("failed to full resync from followed instance: %v", err)
@@ -987,6 +1001,20 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 				if err = pgm.Restart(false); err != nil {
 					log.Errorf("err: %v", err)
 					return
+				}
+			}
+
+			if !pgm.IsReady() {
+				log.Info("Standby is not accepting connections. It's probably waiting for unavailable WALs. Forcing a full resync.")
+				if err = p.resync(followed, initialized, started); err != nil {
+					log.Errorf("failed to full resync from followed instance: %v", err)
+					return
+				}
+				if err = pgm.Start(); err != nil {
+					log.Errorf("err: %v", err)
+					return
+				} else {
+					started = true
 				}
 			}
 		}
