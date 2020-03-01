@@ -896,19 +896,11 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 					}
 				}
 
-				if !pgm.IsReady() {
-					log.Info("Standby is not accepting connections. It's probably waiting for unavailable WALs. Forcing a full resync.")
-					if err = p.resync(followed, initialized, started); err != nil {
-						log.Errorf("failed to full resync from followed instance: %v", err)
-						return
-					}
-					if err = pgm.Start(); err != nil {
-						log.Errorf("err: %v", err)
-						return
-					} else {
-						started = true
-					}
+				if err = p.resyncIfNotReady(); err != nil {
+					log.Error(err)
+					return
 				}
+				started = true
 			} else {
 				if err = p.resync(followed, initialized, started); err != nil {
 					log.Errorf("failed to full resync from followed instance: %v", err)
@@ -1004,19 +996,12 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 				}
 			}
 
-			if !pgm.IsReady() {
-				log.Info("Standby is not accepting connections. It's probably waiting for unavailable WALs. Forcing a full resync.")
-				if err = p.resync(followed, initialized, started); err != nil {
-					log.Errorf("failed to full resync from followed instance: %v", err)
-					return
-				}
-				if err = pgm.Start(); err != nil {
-					log.Errorf("err: %v", err)
-					return
-				} else {
-					started = true
-				}
+			if err = p.resyncIfNotReady(); err != nil {
+				log.Error(err)
+				return
 			}
+
+			started = true
 		}
 	}
 
@@ -1047,6 +1032,19 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 		log.Errorf("err: %v", err)
 		return
 	}
+}
+
+func (p *PostgresKeeper) resyncIfNotReady() error {
+	if !p.pgm.IsReady() {
+		log.Info("Standby is not accepting connections. It's probably waiting for unavailable WALs. Forcing a full resync.")
+		if err = p.resync(followed, initialized, started); err != nil {
+			return trace.Wrap(err, "failed to full resync from followed instance")
+		}
+		if err = p.pgm.Start(); err != nil {
+			return trace.Wrap(err, "error starting PostgreSQL instance")
+		}
+	}
+	return nil
 }
 
 func getIDFilePath(conf config) string {

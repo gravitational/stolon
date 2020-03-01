@@ -38,7 +38,7 @@ import (
 )
 
 const (
-	startTimeout       = 120 * time.Second
+	startTimeout       = 2 * time.Minute
 	postgresPidFile    = "postmaster.pid"
 	sleepBetweenChecks = 200 * time.Millisecond
 )
@@ -187,41 +187,44 @@ func (p *Manager) Start() error {
 	}()
 
 	pid := cmd.Process.Pid
-	// Wait for the correct pid file to appear or for the process to exit
-	ok := false
-	start := time.Now()
-	for time.Since(start) < startTimeout {
-		pidFile, err := os.Open(filepath.Join(p.dataDir, postgresPidFile))
-		if err != nil {
-			return trace.ConvertSystemError(err)
-		}
-
-		scanner := bufio.NewScanner(pidFile)
-		scanner.Split(bufio.ScanLines)
-		if scanner.Scan() {
-			fpid := scanner.Text()
-			if fpid == strconv.Itoa(pid) {
-				ok = true
-				pidFile.Close()
-				break
-			}
-		}
-		pidFile.Close()
-
-		select {
-		case <-exited:
-			return trace.Errorf("PostgreSQL process exited unexpectedly")
-		default:
-		}
-
-		time.Sleep(sleepBetweenChecks)
-	}
-
-	if !ok {
-		return trace.Errorf("PostgreSQL process is still starting")
+	if err := p.waitForPid(pid, exited); err != nil {
+		return trace.Wrap(err)
 	}
 
 	return nil
+}
+
+// waitForPid waits for the correct pid file to appear in file or for the process to exit
+func (p *Manager) waitForPid(pid int, exited chan struct{}) error {
+	tick := time.Tick(sleepBetweenChecks)
+	timeout := time.After(startTimeout)
+
+	for {
+		select {
+		case <-tick:
+			pidFile, err := os.Open(filepath.Join(p.dataDir, postgresPidFile))
+			if err != nil {
+				return trace.ConvertSystemError(err)
+			}
+
+			scanner := bufio.NewScanner(pidFile)
+			scanner.Split(bufio.ScanLines)
+			if scanner.Scan() {
+				fpid := scanner.Text()
+				if fpid == strconv.Itoa(pid) {
+					pidFile.Close()
+					return nil
+				}
+			}
+			pidFile.Close()
+
+		case <-exited:
+			return trace.Errorf("PostgreSQL process exited unexpectedly")
+
+		case <-timeout:
+			return trace.LimitExceeded("PostgreSQL process is still starting")
+		}
+	}
 }
 
 func (p *Manager) Stop(fast bool) error {
@@ -248,7 +251,7 @@ func (p *Manager) IsReady() (ready bool, err error) {
 		}
 		time.Sleep(sleepBetweenChecks)
 	}
-	return false, trace.Errorf("timeout waiting for PostgreSQL ready")
+	return false, trace.LimitExceeded("timeout waiting for PostgreSQL to become ready")
 }
 
 func (p *Manager) IsStarted() (bool, error) {
