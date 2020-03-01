@@ -896,7 +896,7 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 					}
 				}
 
-				if err = p.resyncIfNotReady(); err != nil {
+				if err = p.resyncIfNotReady(followed, initialized, started); err != nil {
 					log.Error(err)
 					return
 				}
@@ -996,7 +996,7 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 				}
 			}
 
-			if err = p.resyncIfNotReady(); err != nil {
+			if err = p.resyncIfNotReady(followed, initialized, started); err != nil {
 				log.Error(err)
 				return
 			}
@@ -1034,8 +1034,12 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 	}
 }
 
-func (p *PostgresKeeper) resyncIfNotReady() error {
-	if !p.pgm.IsReady() {
+func (p *PostgresKeeper) resyncIfNotReady(followed *cluster.KeeperState, initialized, started bool) error {
+	ready, err := p.pgm.IsReady()
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	if !ready {
 		log.Info("Standby is not accepting connections. It's probably waiting for unavailable WALs. Forcing a full resync.")
 		if err = p.resync(followed, initialized, started); err != nil {
 			return trace.Wrap(err, "failed to full resync from followed instance")
