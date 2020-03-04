@@ -29,10 +29,16 @@ import (
 	"time"
 
 	"github.com/gravitational/stolon/common"
+	"github.com/gravitational/trace"
 
 	log "github.com/Sirupsen/logrus"
 	_ "github.com/lib/pq"
 	"golang.org/x/net/context"
+)
+
+const (
+	// startTimeout is the timeout for starting the PostgreSQL process
+	startTimeout = "120" // 2 minutes
 )
 
 type Manager struct {
@@ -157,24 +163,45 @@ out:
 	return nil
 }
 
+// Start starts the PostgreSQL server
 func (p *Manager) Start() error {
-	log.Infof("Starting database")
+	log.Info("Starting database")
 	if err := p.WriteConf(); err != nil {
-		return fmt.Errorf("error writing conf file: %v", err)
+		return trace.Wrap(err, "error writing conf file")
 	}
 	name := filepath.Join(p.pgBinPath, "pg_ctl")
-	cmd := exec.Command(name, "start", "-w", "-D", p.dataDir)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	// TODO(sgotti) attaching a pipe to sdtout/stderr makes the postgres
-	// process executed by pg_ctl inheriting it's file descriptors. So
-	// cmd.Wait() will block and waiting on them to be closed (will happend
-	// only when postgres is stopped). So this functions will never return.
-	// To avoid this no output is captured. If needed there's the need to
-	// find a way to get the output whitout blocking.
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("error: %v", err)
+	cmd := exec.Command(name, "start", "-w", "-t", startTimeout, "-D", p.dataDir)
+	stdoutPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		return trace.Wrap(err)
 	}
+	stderrPipe, err := cmd.StderrPipe()
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	if err = cmd.Start(); err != nil {
+		return trace.Wrap(err)
+	}
+
+	stdoutScanner := bufio.NewScanner(stdoutPipe)
+	go func() {
+		for stdoutScanner.Scan() {
+			log.Infof("pg_ctl command stdout: %s\n", stdoutScanner.Text())
+		}
+	}()
+
+	stderrScanner := bufio.NewScanner(stderrPipe)
+	go func() {
+		for stderrScanner.Scan() {
+			log.Infof("pg_ctl command stderr: %s\n", stderrScanner.Text())
+		}
+	}()
+
+	if err = cmd.Wait(); err != nil {
+		return trace.Wrap(err)
+	}
+
 	return nil
 }
 
