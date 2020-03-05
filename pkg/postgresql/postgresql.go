@@ -37,8 +37,8 @@ import (
 )
 
 const (
-	// startTimeout is the timeout for starting the PostgreSQL process
-	startTimeout = "120" // 2 minutes
+	startTimeout       = 2 * time.Minute
+	sleepBetweenChecks = 200 * time.Millisecond
 )
 
 type Manager struct {
@@ -170,7 +170,8 @@ func (p *Manager) Start() error {
 		return trace.Wrap(err, "error writing conf file")
 	}
 	name := filepath.Join(p.pgBinPath, "pg_ctl")
-	cmd := exec.Command(name, "start", "-w", "-t", startTimeout, "-D", p.dataDir)
+	cmd := exec.Command(name, "start", "-w", "-t",
+		string(startTimeout/time.Minute), "-D", p.dataDir)
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
 		return trace.Wrap(err)
@@ -187,14 +188,14 @@ func (p *Manager) Start() error {
 	stdoutScanner := bufio.NewScanner(stdoutPipe)
 	go func() {
 		for stdoutScanner.Scan() {
-			log.Infof("pg_ctl command stdout: %s\n", stdoutScanner.Text())
+			log.Infof("pg_ctl command stdout: %s", stdoutScanner.Text())
 		}
 	}()
 
 	stderrScanner := bufio.NewScanner(stderrPipe)
 	go func() {
 		for stderrScanner.Scan() {
-			log.Infof("pg_ctl command stderr: %s\n", stderrScanner.Text())
+			log.Infof("pg_ctl command stderr: %s", stderrScanner.Text())
 		}
 	}()
 
@@ -218,6 +219,18 @@ func (p *Manager) Stop(fast bool) error {
 		return fmt.Errorf("error: %v, output: %s", err, string(out))
 	}
 	return nil
+}
+
+// IsReady checks if the PostgreSQL server accepting connections
+func (p *Manager) IsReady() (ready bool, err error) {
+	start := time.Now()
+	for time.Since(start) < startTimeout {
+		if err := p.ping(); err == nil {
+			return true, nil
+		}
+		time.Sleep(sleepBetweenChecks)
+	}
+	return false, trace.LimitExceeded("timeout waiting for PostgreSQL to become ready")
 }
 
 func (p *Manager) IsStarted() (bool, error) {
@@ -542,4 +555,11 @@ func (p *Manager) RemoveAll() error {
 		return fmt.Errorf("cannot remove postregsql database. Instance is active")
 	}
 	return os.RemoveAll(p.dataDir)
+}
+
+// ping checks an availability of a PostgreSQL instance
+func (p *Manager) ping() error {
+	ctx, cancel := context.WithTimeout(context.Background(), p.requestTimeout)
+	defer cancel()
+	return CheckDBStatus(ctx, p.localConnString)
 }

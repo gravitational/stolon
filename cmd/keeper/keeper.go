@@ -895,6 +895,12 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 						started = true
 					}
 				}
+
+				if err = p.resyncIfNotReady(followed, initialized, started); err != nil {
+					log.Error(err)
+					return
+				}
+				started = true
 			} else {
 				if err = p.resync(followed, initialized, started); err != nil {
 					log.Errorf("failed to full resync from followed instance: %v", err)
@@ -989,25 +995,13 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 					return
 				}
 			}
-		}
-	} else if keeperRole.Follow == "" {
-		log.Infof("our cluster requested state is standby following no one")
-		if err = pgm.WriteRecoveryConf(nil); err != nil {
-			log.Errorf("err: %v", err)
-			return
-		}
-		if !started {
-			if err = pgm.Start(); err != nil {
-				log.Errorf("err: %v", err)
-				return
-			} else {
-				started = true
-			}
-		} else {
-			if err = pgm.Restart(false); err != nil {
-				log.Errorf("err: %v", err)
+
+			if err = p.resyncIfNotReady(followed, initialized, started); err != nil {
+				log.Error(err)
 				return
 			}
+
+			started = true
 		}
 	}
 
@@ -1038,6 +1032,23 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 		log.Errorf("err: %v", err)
 		return
 	}
+}
+
+func (p *PostgresKeeper) resyncIfNotReady(followed *cluster.KeeperState, initialized, started bool) error {
+	ready, err := p.pgm.IsReady()
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	if !ready {
+		log.Info("Standby is not accepting connections. It's probably waiting for unavailable WALs. Forcing a full resync.")
+		if err = p.resync(followed, initialized, started); err != nil {
+			return trace.Wrap(err, "failed to full resync from followed instance")
+		}
+		if err = p.pgm.Start(); err != nil {
+			return trace.Wrap(err, "error starting PostgreSQL instance")
+		}
+	}
+	return nil
 }
 
 func getIDFilePath(conf config) string {
