@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -171,7 +172,7 @@ func (p *Manager) Start() error {
 	}
 	name := filepath.Join(p.pgBinPath, "pg_ctl")
 	cmd := exec.Command(name, "start", "-w", "-t",
-		string(int64(startTimeout/time.Second)), "-D", p.dataDir)
+		strconv.FormatInt(int64(startTimeout/time.Second), 10), "-D", p.dataDir)
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
 		return trace.Wrap(err)
