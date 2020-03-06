@@ -26,6 +26,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -187,23 +188,14 @@ func (p *Manager) Start() error {
 		return trace.Wrap(err)
 	}
 
-	stdoutScanner := bufio.NewScanner(stdoutPipe)
-	go func() {
-		for stdoutScanner.Scan() {
-			log.Infof("pg_ctl command stdout: %s", stdoutScanner.Text())
-		}
-	}()
-
-	stderrScanner := bufio.NewScanner(stderrPipe)
-	go func() {
-		for stderrScanner.Scan() {
-			log.Infof("pg_ctl command stderr: %s", stderrScanner.Text())
-		}
-	}()
-
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go logOutput(stdoutPipe, &wg, "stdout")
+	go logOutput(stderrPipe, &wg, "stderr")
 	if err = cmd.Wait(); err != nil {
 		return trace.Wrap(err)
 	}
+	wg.Wait()
 
 	return nil
 }
@@ -223,7 +215,7 @@ func (p *Manager) Stop(fast bool) error {
 	return nil
 }
 
-// IsReady checks if the PostgreSQL server accepting connections
+// IsReady checks if the PostgreSQL server is accepting connections
 func (p *Manager) IsReady() (ready bool, err error) {
 	start := time.Now()
 	for time.Since(start) < startTimeout {
@@ -559,9 +551,17 @@ func (p *Manager) RemoveAll() error {
 	return os.RemoveAll(p.dataDir)
 }
 
-// ping checks an availability of a PostgreSQL instance
+// ping checks availability of a PostgreSQL instance
 func (p *Manager) ping() error {
 	ctx, cancel := context.WithTimeout(context.Background(), p.requestTimeout)
 	defer cancel()
 	return CheckDBStatus(ctx, p.localConnString)
+}
+
+func logOutput(r io.Reader, wg *sync.WaitGroup, pipeName string) {
+	scanner := bufio.NewScanner(r)
+	for scanner.Scan() {
+		log.Infof("pg_ctl command %v: %s", pipeName, scanner.Text())
+	}
+	wg.Done()
 }
