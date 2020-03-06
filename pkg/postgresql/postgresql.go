@@ -171,7 +171,7 @@ func (p *Manager) Start() error {
 	}
 	name := filepath.Join(p.pgBinPath, "pg_ctl")
 	cmd := exec.Command(name, "start", "-w", "-t",
-		string(startTimeout/time.Minute), "-D", p.dataDir)
+		string(startTimeout/time.Second), "-D", p.dataDir)
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
 		return trace.Wrap(err)
@@ -181,6 +181,7 @@ func (p *Manager) Start() error {
 		return trace.Wrap(err)
 	}
 
+	log.Infof("Executing command: %s", cmd.String())
 	if err = cmd.Start(); err != nil {
 		return trace.Wrap(err)
 	}
