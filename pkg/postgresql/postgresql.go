@@ -24,15 +24,23 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/gravitational/stolon/common"
+	"github.com/gravitational/trace"
 
 	log "github.com/Sirupsen/logrus"
 	_ "github.com/lib/pq"
 	"golang.org/x/net/context"
+)
+
+const (
+	startTimeout       = 2 * time.Minute
+	sleepBetweenChecks = 200 * time.Millisecond
 )
 
 type Manager struct {
@@ -157,24 +165,38 @@ out:
 	return nil
 }
 
+// Start starts the PostgreSQL server
 func (p *Manager) Start() error {
-	log.Infof("Starting database")
+	log.Info("Starting database")
 	if err := p.WriteConf(); err != nil {
-		return fmt.Errorf("error writing conf file: %v", err)
+		return trace.Wrap(err, "error writing conf file")
 	}
 	name := filepath.Join(p.pgBinPath, "pg_ctl")
-	cmd := exec.Command(name, "start", "-w", "-D", p.dataDir)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	// TODO(sgotti) attaching a pipe to sdtout/stderr makes the postgres
-	// process executed by pg_ctl inheriting it's file descriptors. So
-	// cmd.Wait() will block and waiting on them to be closed (will happend
-	// only when postgres is stopped). So this functions will never return.
-	// To avoid this no output is captured. If needed there's the need to
-	// find a way to get the output whitout blocking.
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("error: %v", err)
+	cmd := exec.Command(name, "start", "-w", "-t",
+		strconv.FormatInt(int64(startTimeout/time.Second), 10), "-D", p.dataDir)
+	stdoutPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		return trace.Wrap(err)
 	}
+	stderrPipe, err := cmd.StderrPipe()
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	log.Infof("Executing command: %s", cmd.String())
+	if err = cmd.Start(); err != nil {
+		return trace.Wrap(err)
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go logOutput(stdoutPipe, &wg, "stdout")
+	go logOutput(stderrPipe, &wg, "stderr")
+	if err = cmd.Wait(); err != nil {
+		return trace.Wrap(err)
+	}
+	wg.Wait()
+
 	return nil
 }
 
@@ -191,6 +213,18 @@ func (p *Manager) Stop(fast bool) error {
 		return fmt.Errorf("error: %v, output: %s", err, string(out))
 	}
 	return nil
+}
+
+// IsReady checks if the PostgreSQL server is accepting connections
+func (p *Manager) IsReady() (ready bool, err error) {
+	start := time.Now()
+	for time.Since(start) < startTimeout {
+		if err := p.ping(); err == nil {
+			return true, nil
+		}
+		time.Sleep(sleepBetweenChecks)
+	}
+	return false, trace.LimitExceeded("timeout waiting for PostgreSQL to become ready")
 }
 
 func (p *Manager) IsStarted() (bool, error) {
@@ -515,4 +549,19 @@ func (p *Manager) RemoveAll() error {
 		return fmt.Errorf("cannot remove postregsql database. Instance is active")
 	}
 	return os.RemoveAll(p.dataDir)
+}
+
+// ping checks availability of a PostgreSQL instance
+func (p *Manager) ping() error {
+	ctx, cancel := context.WithTimeout(context.Background(), p.requestTimeout)
+	defer cancel()
+	return CheckDBStatus(ctx, p.localConnString)
+}
+
+func logOutput(r io.Reader, wg *sync.WaitGroup, pipeName string) {
+	scanner := bufio.NewScanner(r)
+	for scanner.Scan() {
+		log.Infof("pg_ctl command %v: %s", pipeName, scanner.Text())
+	}
+	wg.Done()
 }
