@@ -24,6 +24,7 @@ import (
 
 	"github.com/gravitational/stolon/common"
 	"github.com/gravitational/stolon/pkg/cluster"
+	"github.com/gravitational/trace"
 
 	_ "github.com/lib/pq"
 	"golang.org/x/net/context"
@@ -361,4 +362,20 @@ func GetTimelinesHistory(ctx context.Context, timeline uint64, replConnParams Co
 
 func IsValidReplSlotName(name string) bool {
 	return ValidReplSlotName.MatchString(name)
+}
+
+// isStreaming returns error if the PostgreSQL is not streaming WALs from master
+func isStreaming(ctx context.Context, connString string) error {
+	db, err := sql.Open("postgres", connString)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	defer db.Close()
+
+	_, err = Query(ctx, db, "select pid from pg_stat_wal_receiver")
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	return nil
 }

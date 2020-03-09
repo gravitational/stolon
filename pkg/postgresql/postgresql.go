@@ -551,6 +551,14 @@ func (p *Manager) RemoveAll() error {
 	return os.RemoveAll(p.dataDir)
 }
 
+// IsStreaming returns error if the PostgreSQL is not streaming WALs from master
+func (p *Manager) IsStreaming() error {
+	ctx, cancel := context.WithTimeout(context.Background(), p.requestTimeout)
+	defer cancel()
+
+	return isStreaming(ctx, p.localConnString)
+}
+
 // ping checks availability of a PostgreSQL instance
 func (p *Manager) ping() error {
 	ctx, cancel := context.WithTimeout(context.Background(), p.requestTimeout)
