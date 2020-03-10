@@ -372,9 +372,14 @@ func isStreaming(ctx context.Context, connString string) error {
 	}
 	defer db.Close()
 
-	_, err = Query(ctx, db, "select pid from pg_stat_wal_receiver")
+	rows, err := Query(ctx, db, "select pid from pg_stat_wal_receiver")
 	if err != nil {
 		return trace.Wrap(err)
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		return trace.Wrap(rows.Err())
 	}
 
 	return nil
