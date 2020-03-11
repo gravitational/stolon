@@ -23,7 +23,6 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/gravitational/trace"
 
 	"github.com/gravitational/stolon/pkg/store"

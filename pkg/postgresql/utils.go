@@ -366,6 +366,7 @@ func IsValidReplSlotName(name string) bool {
 
 // isStreaming returns error if the PostgreSQL is not streaming WALs from master
 func isStreaming(ctx context.Context, connString string) error {
+	log.Debug("Checking whether PostgreSQL is streaming.")
 	db, err := sql.Open("postgres", connString)
 	if err != nil {
 		return trace.Wrap(err)
@@ -379,7 +380,7 @@ func isStreaming(ctx context.Context, connString string) error {
 	defer rows.Close()
 
 	if !rows.Next() {
-		return trace.Wrap(rows.Err())
+		return trace.NotFound("WAL receiver is not ready")
 	}
 
 	return nil
