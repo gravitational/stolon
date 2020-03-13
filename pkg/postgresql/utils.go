@@ -364,7 +364,8 @@ func IsValidReplSlotName(name string) bool {
 	return ValidReplSlotName.MatchString(name)
 }
 
-// isStreaming returns error if the PostgreSQL is not streaming WALs from master
+// isStreaming determines whether the PostgreSQL is streaming WALs from a master.
+// Returns NotFound if no receiver started to stream WALs.
 func isStreaming(ctx context.Context, connString string) error {
 	log.Debug("Checking whether PostgreSQL is streaming.")
 	db, err := sql.Open("postgres", connString)

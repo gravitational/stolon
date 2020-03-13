@@ -1040,20 +1040,13 @@ func (p *PostgresKeeper) resyncIfNotReady(followed *cluster.KeeperState, initial
 		return trace.Wrap(err)
 	}
 
-	if !ready {
+	if !ready || p.pgm.IsStreaming() != nil {
 		log.Info("Standby is not accepting connections. Forcing a full resync.")
 		if err = p.resyncAndStart(followed, initialized, started); err != nil {
 			return trace.Wrap(err)
 		}
 	}
 
-	if err = p.pgm.IsStreaming(); err != nil {
-		log.Info("Standby is not accepting connections. It's probably waiting for unavailable WALs. Forcing a full resync.")
-		log.Debugf("Error: %v", err)
-		if err = p.resyncAndStart(followed, initialized, started); err != nil {
-			return trace.Wrap(err)
-		}
-	}
 	return nil
 }
 
