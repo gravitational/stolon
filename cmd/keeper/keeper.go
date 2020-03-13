@@ -1039,15 +1039,25 @@ func (p *PostgresKeeper) resyncIfNotReady(followed *cluster.KeeperState, initial
 	if err != nil {
 		return trace.Wrap(err)
 	}
-	if !ready {
-		log.Info("Standby is not accepting connections. It's probably waiting for unavailable WALs. Forcing a full resync.")
-		if err = p.resync(followed, initialized, started); err != nil {
-			return trace.Wrap(err, "failed to full resync from followed instance")
-		}
-		if err = p.pgm.Start(); err != nil {
-			return trace.Wrap(err, "error starting PostgreSQL instance")
+
+	if !ready || p.pgm.IsStreaming() != nil {
+		log.Info("Standby is not accepting connections. Forcing a full resync.")
+		if err = p.resyncAndStart(followed, initialized, started); err != nil {
+			return trace.Wrap(err)
 		}
 	}
+
+	return nil
+}
+
+func (p *PostgresKeeper) resyncAndStart(followed *cluster.KeeperState, initialized, started bool) error {
+	if err := p.resync(followed, initialized, started); err != nil {
+		return trace.Wrap(err, "failed to full resync from followed instance")
+	}
+	if err := p.pgm.Start(); err != nil {
+		return trace.Wrap(err, "error starting PostgreSQL instance")
+	}
+
 	return nil
 }
 

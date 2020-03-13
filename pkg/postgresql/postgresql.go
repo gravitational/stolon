@@ -33,7 +33,7 @@ import (
 	"github.com/gravitational/stolon/common"
 	"github.com/gravitational/trace"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/coreos/pkg/capnslog"
 	_ "github.com/lib/pq"
 	"golang.org/x/net/context"
 )
@@ -42,6 +42,8 @@ const (
 	startTimeout       = 2 * time.Minute
 	sleepBetweenChecks = 200 * time.Millisecond
 )
+
+var log = capnslog.NewPackageLogger("github.com/gravitational/pkg/postgresql", "postgresql")
 
 type Manager struct {
 	name            string
@@ -549,6 +551,14 @@ func (p *Manager) RemoveAll() error {
 		return fmt.Errorf("cannot remove postregsql database. Instance is active")
 	}
 	return os.RemoveAll(p.dataDir)
+}
+
+// IsStreaming returns error if the PostgreSQL is not streaming WALs from master
+func (p *Manager) IsStreaming() error {
+	ctx, cancel := context.WithTimeout(context.Background(), p.requestTimeout)
+	defer cancel()
+
+	return isStreaming(ctx, p.localConnString)
 }
 
 // ping checks availability of a PostgreSQL instance
