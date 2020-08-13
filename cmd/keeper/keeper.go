@@ -927,6 +927,33 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 					started = true
 				}
 			}
+			
+			// Update our primary_conninfo if replConnString changed
+			var curConnParams postgresql.ConnParams
+
+			curConnParams, err = pgm.GetPrimaryConninfo()
+			if err != nil {
+				log.Errorf("err: %v", err)
+				return
+			}
+			log.Debugf(spew.Sprintf("curConnParams: %v", curConnParams))
+
+			newConnParams := p.getReplConnParams(followed)
+			log.Debugf(spew.Sprintf("newConnParams: %v", newConnParams))
+
+			if !curConnParams.Equals(newConnParams) {
+				log.Infof("followed instance connection parameters changed. Reconfiguring...")
+				log.Infof("following %s with connection parameters %v", keeperRole.Follow, newConnParams)
+				if err = pgm.WriteRecoveryConf(newConnParams); err != nil {
+					log.Errorf("err: %v", err)
+					return
+				}
+				if err = pgm.Restart(false); err != nil {
+					log.Errorf("err: %v", err)
+					return
+				}
+			}
+
 
 			var replSlots []string
 			replSlots, err = pgm.GetReplicationSlots()
@@ -969,32 +996,6 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 			}
 
 			// TODO(sgotti) Check that the followed instance has all the needed WAL segments
-
-			// Update our primary_conninfo if replConnString changed
-			var curConnParams postgresql.ConnParams
-
-			curConnParams, err = pgm.GetPrimaryConninfo()
-			if err != nil {
-				log.Errorf("err: %v", err)
-				return
-			}
-			log.Debugf(spew.Sprintf("curConnParams: %v", curConnParams))
-
-			newConnParams := p.getReplConnParams(followed)
-			log.Debugf(spew.Sprintf("newConnParams: %v", newConnParams))
-
-			if !curConnParams.Equals(newConnParams) {
-				log.Infof("followed instance connection parameters changed. Reconfiguring...")
-				log.Infof("following %s with connection parameters %v", keeperRole.Follow, newConnParams)
-				if err = pgm.WriteRecoveryConf(newConnParams); err != nil {
-					log.Errorf("err: %v", err)
-					return
-				}
-				if err = pgm.Restart(false); err != nil {
-					log.Errorf("err: %v", err)
-					return
-				}
-			}
 
 			if err = p.resyncIfNotReady(followed, initialized, started); err != nil {
 				log.Error(err)
