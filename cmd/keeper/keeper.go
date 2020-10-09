@@ -773,15 +773,18 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 	if !ok {
 		// No information about our role
 		log.Infof("our keeper requested role is not available")
-		// sleep a few cycles to make sure replication slot is created on master
-		time.Sleep(2 * clusterConfig.SleepInterval)
 		if initialized && !started {
 			if err = pgm.Start(); err != nil {
 				log.Errorf("failed to start postgres: %v", err)
 				return
-			} else {
-				started = true
 			}
+			if pgm.IsStreaming() != nil {
+				if err = pgm.Stop(true); err != nil {
+					log.Errorf("Failed to stop PostgreSQL: %v", err)
+				}
+				return
+			}
+			started = true
 		}
 		return
 	}
