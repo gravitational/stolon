@@ -778,15 +778,8 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 			if err = pgm.Start(); err != nil {
 				log.Errorf("failed to start postgres: %v", err)
 				return
-			}
-			// checking whether PostgreSQL standby is streaming from master because replication slot
-			// might not exist on master yet
-			// trying to stop PostgreSQL this tick and deal with replication again next tick
-			if err = pgm.IsStreaming(); err != nil {
-				if err = pgm.Stop(true); err != nil {
-					log.Errorf("Failed to stop PostgreSQL: %v", err)
-				}
-				return
+			} else {
+				started = true
 			}
 		}
 		return
