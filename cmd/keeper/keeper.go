@@ -562,6 +562,7 @@ func (p *PostgresKeeper) Start() {
 			return
 
 		case <-smTimerCh:
+			smTimerCh = nil
 			go func() {
 				p.postgresKeeperSM(ctx)
 				select {
@@ -779,7 +780,7 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 				return
 			}
 			// checking whether PostgreSQL standby is streaming from master because replication slot
-			// could not be exist on master yet
+			// might not exist on master yet
 			// trying to stop PostgreSQL this tick and deal with replication again next tick
 			if err = pgm.IsStreaming(); err != nil {
 				if err = pgm.Stop(true); err != nil {
