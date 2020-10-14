@@ -562,6 +562,7 @@ func (p *PostgresKeeper) Start() {
 			return
 
 		case <-smTimerCh:
+			smTimerCh = nil
 			go func() {
 				p.postgresKeeperSM(ctx)
 				select {
@@ -895,12 +896,6 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 						started = true
 					}
 				}
-
-				if err = p.resyncIfNotReady(followed, initialized, started); err != nil {
-					log.Error(err)
-					return
-				}
-				started = true
 			} else {
 				if err = p.resync(followed, initialized, started); err != nil {
 					log.Errorf("failed to full resync from followed instance: %v", err)
@@ -927,7 +922,7 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 					started = true
 				}
 			}
-			
+
 			// Update our primary_conninfo if replConnString changed
 			var curConnParams postgresql.ConnParams
 
@@ -953,7 +948,6 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 					return
 				}
 			}
-
 
 			var replSlots []string
 			replSlots, err = pgm.GetReplicationSlots()
@@ -994,15 +988,6 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 					started = true
 				}
 			}
-
-			// TODO(sgotti) Check that the followed instance has all the needed WAL segments
-
-			if err = p.resyncIfNotReady(followed, initialized, started); err != nil {
-				log.Error(err)
-				return
-			}
-
-			started = true
 		}
 	}
 
@@ -1033,22 +1018,6 @@ func (p *PostgresKeeper) postgresKeeperSM(pctx context.Context) {
 		log.Errorf("err: %v", err)
 		return
 	}
-}
-
-func (p *PostgresKeeper) resyncIfNotReady(followed *cluster.KeeperState, initialized, started bool) error {
-	ready, err := p.pgm.IsReady()
-	if err != nil {
-		return trace.Wrap(err)
-	}
-
-	if !ready || p.pgm.IsStreaming() != nil {
-		log.Info("Standby is not accepting connections. Forcing a full resync.")
-		if err = p.resyncAndStart(followed, initialized, started); err != nil {
-			return trace.Wrap(err)
-		}
-	}
-
-	return nil
 }
 
 func (p *PostgresKeeper) resyncAndStart(followed *cluster.KeeperState, initialized, started bool) error {
